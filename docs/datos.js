@@ -220,7 +220,7 @@ window.CATEGORIAS = [
         nombre: "Caja de Regalo",
         descripcion: "Caja de regalo con 4 latas.",
         precio: 300,
-        foto: "img/productos/caja-regalo.jpg",
+        foto: "img/productos/caja-regalo-mano.jpg",
         opciones: ["Vainilla", "Chocolate"],
         minimo: 1, latas: 4,
       },

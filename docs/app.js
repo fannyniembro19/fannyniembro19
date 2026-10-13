@@ -199,7 +199,7 @@
         const activa = a.getAttribute("href") === "#" + en.target.id;
         a.classList.toggle("activa", activa);
         // Mover solo la barra de pestañas (scrollIntoView también movía la página y frenaba el scroll)
-        if (activa) nav.scrollTo({ left: a.offsetLeft - (nav.clientWidth - a.offsetWidth) / 2, behavior: "smooth" });
+        if (activa) nav.scrollLeft = a.offsetLeft - (nav.clientWidth - a.offsetWidth) / 2;
       });
     });
   }, { rootMargin: "-40% 0px -55% 0px" });

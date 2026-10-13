@@ -218,10 +218,10 @@ window.CATEGORIAS = [
       {
         id: "caja-regalo-4",
         nombre: "Caja de Regalo",
-        descripcion: "Caja de regalo con 4 latas.",
+        descripcion: "Caja de regalo con 4 latas: Vainilla, Chocolate o Espresso.",
         precio: 300,
-        foto: "img/productos/caja-regalo-mano.jpg",
-        opciones: ["Vainilla", "Chocolate"],
+        foto: "img/productos/caja-kraft.jpg",
+        opciones: ["Vainilla", "Chocolate", "Espresso"],
         minimo: 1, latas: 4,
       },
       {
@@ -298,7 +298,7 @@ window.CATEGORIAS = [
         nombre: "Caja de regalo",
         descripcion: "Caja kraft para 4 latas, lista para regalar.",
         precio: 30,
-        foto: "img/productos/caja-kraft.jpg",
+        foto: "img/productos/caja-regalo-mano.jpg",
         minimo: 1, latas: 0,
       },
     ],

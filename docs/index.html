@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Nina Míngues · Postres en Lata · Menú</title>
+  <meta name="description" content="Postres en lata que celebran grandes momentos. Haz tu pedido por WhatsApp. Colima, México.">
+  <meta name="theme-color" content="#F4DDE2">
+
+  <!-- Vista previa al compartir el link en WhatsApp / Instagram / Facebook -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Nina Míngues · Postres en Lata">
+  <meta property="og:description" content="Postres en lata que celebran grandes momentos. Mira el menú y pide por WhatsApp.">
+  <meta property="og:image" content="https://fannyniembro19.github.io/fannyniembro19/img/compartir.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:locale" content="es_MX">
+
+  <link rel="icon" href="img/icono.png">
+  <link rel="apple-touch-icon" href="img/icono.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Jost:wght@400;500;600;700&family=Kaushan+Script&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="estilos.css">
+</head>
+<body>
+  <header class="hero">
+    <img class="hero__logo" src="img/logo.png" alt="Nina Míngues · Postres en lata" width="900" height="250">
+    <p class="hero__eslogan" id="eslogan"></p>
+    <p class="hero__estado" id="estado" hidden></p>
+    <div class="hero__redes">
+      <a class="btn btn--wa" id="link-wa" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2Zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.6.1l-.8 1c-.1.2-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.2-.4.2-.4.7-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.7 11.8 11.8 0 0 0 4.5 4c1.7.7 2.3.8 3.2.6.5-.1 1.5-.6 1.7-1.2.2-.6.2-1.1.1-1.2l-.4-.3Z"/></svg>
+        WhatsApp
+      </a>
+      <a class="btn btn--ig" id="link-ig" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10Zm0 8.2a3.2 3.2 0 1 1 0-6.4 3.2 3.2 0 0 1 0 6.4ZM17.3 5.5a1.2 1.2 0 1 0 0 2.4 1.2 1.2 0 0 0 0-2.4ZM12 3.8c2.7 0 3 0 4 .1 2.7.1 4 1.4 4.1 4.1v8c-.1 2.7-1.4 4-4.1 4.1h-8c-2.7-.1-4-1.4-4.1-4.1v-8C4 5.3 5.3 4 8 3.9h4ZM12 2H8C4.3 2.2 2.2 4.3 2 8v8c.2 3.7 2.3 5.8 6 6h8c3.7-.2 5.8-2.3 6-6V8c-.2-3.7-2.3-5.8-6-6h-4Z"/></svg>
+        Instagram
+      </a>
+    </div>
+  </header>
+
+  <nav class="categorias" id="categorias" aria-label="Categorías"></nav>
+
+  <main id="menu" class="menu"></main>
+
+  <section class="info" aria-labelledby="info-titulo">
+    <h2 id="info-titulo" class="titulo-script">Antes de pedir</h2>
+    <ul id="notas" class="info__notas"></ul>
+    <h3 class="info__sub">Horario</h3>
+    <ul id="horario" class="info__horario"></ul>
+    <p class="info__ciudad" id="ciudad"></p>
+  </section>
+
+  <footer class="pie">
+    <img src="img/logo.png" alt="" width="220" height="65" loading="lazy">
+    <p>Elaborado de forma artesanal con ingredientes de calidad</p>
+  </footer>
+
+  <!-- Botón flotante del carrito -->
+  <button class="carrito-btn" id="carrito-btn" type="button" hidden>
+    <span class="carrito-btn__cant" id="carrito-cant">0</span>
+    <span>Ver mi pedido</span>
+    <strong id="carrito-total">$0</strong>
+  </button>
+
+  <!-- Panel del pedido -->
+  <div class="panel" id="panel" hidden>
+    <div class="panel__fondo" data-cerrar></div>
+    <section class="panel__caja" role="dialog" aria-modal="true" aria-labelledby="panel-titulo">
+      <header class="panel__cab">
+        <h2 id="panel-titulo" class="titulo-script">Mi pedido</h2>
+        <button class="icono-btn" type="button" data-cerrar aria-label="Cerrar">✕</button>
+      </header>
+
+      <div class="panel__cuerpo">
+        <ul id="lista" class="lista"></ul>
+        <div id="aviso-evento" class="aviso"></div>
+
+        <div class="totales">
+          <div><span>Subtotal</span><strong id="subtotal">$0</strong></div>
+          <div id="fila-ahorro" hidden><span>Ahorro por evento</span><strong id="ahorro">$0</strong></div>
+          <div class="totales__envio"><span>Envío</span><span id="envio-txt">Se cotiza por WhatsApp</span></div>
+          <div class="totales__total"><span>Total</span><strong id="total">$0</strong></div>
+          <div class="totales__anticipo"><span id="anticipo-txt">Anticipo 50%</span><strong id="anticipo">$0</strong></div>
+        </div>
+
+        <form id="form" class="form" novalidate>
+          <h3 class="form__titulo">Tus datos</h3>
+          <label>Nombre
+            <input name="nombre" autocomplete="name" required>
+          </label>
+          <label>Celular
+            <input name="celular" type="tel" inputmode="tel" autocomplete="tel" required placeholder="10 dígitos">
+          </label>
+
+          <fieldset class="opciones">
+            <legend>¿Cómo lo recibes?</legend>
+            <label class="chip"><input type="radio" name="entrega" value="Recoger" required> Paso a recoger</label>
+            <label class="chip"><input type="radio" name="entrega" value="Domicilio"> Envío a domicilio</label>
+          </fieldset>
+
+          <label id="campo-direccion" hidden>Dirección de entrega
+            <textarea name="direccion" rows="2" autocomplete="street-address" placeholder="Calle, número, colonia y referencias"></textarea>
+          </label>
+
+          <label>Fecha de entrega
+            <input name="fecha" type="date" required>
+            <small id="fecha-ayuda" class="ayuda"></small>
+          </label>
+
+          <fieldset class="opciones" id="pagos">
+            <legend>Forma de pago</legend>
+          </fieldset>
+
+          <label>Notas (opcional)
+            <textarea name="notas" rows="2" placeholder="Texto del sticker, hora preferida, etc."></textarea>
+          </label>
+
+          <p class="form__error" id="error" role="alert"></p>
+          <button class="btn btn--enviar" type="submit">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2Zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.6.1l-.8 1c-.1.2-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.2-.4.2-.4.7-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.7 11.8 11.8 0 0 0 4.5 4c1.7.7 2.3.8 3.2.6.5-.1 1.5-.6 1.7-1.2.2-.6.2-1.1.1-1.2l-.4-.3Z"/></svg>
+            Enviar pedido por WhatsApp
+          </button>
+          <p class="ayuda centrado">Se abrirá WhatsApp con tu pedido listo para enviar.</p>
+        </form>
+      </div>
+    </section>
+  </div>
+
+  <!-- Ventana para elegir opción (color / sabor) -->
+  <div class="panel panel--centro" id="selector" hidden>
+    <div class="panel__fondo" data-cerrar></div>
+    <section class="panel__caja selector" role="dialog" aria-modal="true" aria-labelledby="selector-titulo">
+      <h2 id="selector-titulo" class="selector__titulo"></h2>
+      <p class="ayuda">Elige una opción</p>
+      <div id="selector-opciones" class="selector__opciones"></div>
+      <button class="btn btn--sec" type="button" data-cerrar>Cancelar</button>
+    </section>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="datos.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

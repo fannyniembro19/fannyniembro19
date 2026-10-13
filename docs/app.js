@@ -79,7 +79,21 @@
   $("#eventos-min").textContent = N.latasParaEvento;
   $("#eventos-dias").textContent = N.diasAnticipacionEvento;
   $("#link-evento").href = `https://wa.me/${N.whatsapp}?text=${encodeURIComponent(
-    `¡Hola ${N.nombre}! Quiero cotizar postres para un evento:\n\nTipo de evento: \nFecha: \nNúmero de invitados: \nSabores que me interesan: `)}`;
+    `¡Hola ${N.nombre}! Quiero cotizar latas para un evento 🎉\n\n` + N.cotizacionEvento.join("\n"))}`;
+
+  // Galería de eventos con visor
+  $("#galeria").innerHTML = N.galeriaEventos.map((g, i) =>
+    `<button type="button" class="galeria__item" data-foto="${i}"><img src="${esc(g.foto)}" alt="${esc(g.texto)}" loading="lazy"><span>${esc(g.texto)}</span></button>`).join("");
+  $("#galeria").addEventListener("click", e => {
+    const b = e.target.closest("[data-foto]");
+    if (!b) return;
+    const g = N.galeriaEventos[b.dataset.foto];
+    $("#visor-img").src = g.foto;
+    $("#visor-img").alt = g.texto;
+    $("#visor-texto").textContent = g.texto;
+    $("#visor").hidden = false;
+  });
+  $("#visor").addEventListener("click", () => { $("#visor").hidden = true; });
   $("#pagos").insertAdjacentHTML("beforeend", N.formasDePago.map((f, i) =>
     `<label class="chip"><input type="radio" name="pago" value="${esc(f)}" ${i === 0 ? "required" : ""}> ${esc(f)}</label>`).join(""));
 
@@ -143,6 +157,7 @@
           <div class="tarjeta__precios">
             <span class="precio">${dinero(p.precio)}${p.latas === 1 ? " <small>c/u</small>" : ""}</span>
             ${p.precioEvento ? `<span class="precio-evento">${dinero(p.precioEvento)} en pedidos de ${N.latasParaEvento}+</span>` : ""}
+            ${p.peso ? `<span class="peso">≈ ${p.peso} g con envase</span>` : ""}
           </div>
           <div class="control"></div>
         </div>
@@ -187,7 +202,7 @@
       });
     });
   }, { rootMargin: "-40% 0px -55% 0px" });
-  document.querySelectorAll(".seccion").forEach(s => obs.observe(s));
+  document.querySelectorAll(".seccion, #eventos").forEach(s => obs.observe(s));
 
   // ---------- Selector de opciones ----------
   function abrirSelector(p) {
@@ -222,6 +237,7 @@
   }
   document.addEventListener("keydown", e => {
     if (e.key !== "Escape") return;
+    if (!$("#visor").hidden) { $("#visor").hidden = true; return; }
     if (!$("#selector").hidden) cerrar($("#selector"));
     else if (!$("#panel").hidden) cerrar($("#panel"));
   });

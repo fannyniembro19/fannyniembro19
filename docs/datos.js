@@ -17,6 +17,7 @@
  *    foto        → ruta de la foto dentro de la carpeta img/productos
  *                  (si no hay foto, borra la línea y se muestra el logo)
  *    etiqueta    → "Más vendido" o "Nuevo" (opcional)
+ *    peso        → peso aproximado en gramos con envase (opcional)
  *    opciones    → lista de opciones a elegir, ej. ["Azul", "Rosa"] (opcional)
  *    fotosOpcion → una foto por opción, ej. { Azul: "img/...", Rosa: "img/..." }
  *                  (opcional; la tarjeta muestra las fotos lado a lado)
@@ -72,13 +73,41 @@ window.NEGOCIO = {
   ],
 
   notas: [
-    "Precio por lata · porción individual (9 cm de alto, 250 ml)",
+    "Cada lata es una porción generosa, mayor a una rebanada tradicional",
+    "Precio por lata · 9 cm de alto y 250 ml (postres y bebidas)",
     "Pedido mínimo: 4 latas del mismo sabor",
     "Pedidos con 2 días de anticipación (eventos: 5 días, también en domingo)",
     "Precio especial en pedidos de 15 latas o más",
     "50% de anticipo para apartar tu pedido",
     "El costo de envío depende de tu dirección",
     "Elaborado de forma artesanal con ingredientes de calidad",
+  ],
+
+  // Mensaje que se abre al tocar "Cotizar mi evento"
+  cotizacionEvento: [
+    "Tipo de evento:",
+    "Fecha del evento:",
+    "Número de latas:",
+    "Sabor de latas:",
+    "¿Le gustaría sticker o diseño personalizado?:",
+    "Lugar de entrega:",
+  ],
+
+  // Galería de eventos (fotos en img/eventos)
+  galeriaEventos: [
+    { foto: "img/eventos/boda-torre.jpg", texto: "Boda · torre de latas con etiqueta personalizada" },
+    { foto: "img/eventos/boda-mesa.jpg", texto: "Boda · una lata en cada lugar" },
+    { foto: "img/eventos/boda-lattes-hielera.jpg", texto: "Boda · lattes personalizados en hielera" },
+    { foto: "img/eventos/mesa-postres.jpg", texto: "Mesa de postres" },
+    { foto: "img/eventos/cumple-30.jpg", texto: "Cumpleaños 30" },
+    { foto: "img/eventos/cumple-luciana.jpg", texto: "Cumpleaños infantil con sticker personalizado" },
+    { foto: "img/eventos/cumple-infantil.jpg", texto: "Cumpleaños · Cake Party" },
+    { foto: "img/eventos/boda-detalle.jpg", texto: "Recuerdo de boda" },
+    { foto: "img/eventos/hielera-postres.jpg", texto: "Postres en hielera con mucho hielo" },
+    { foto: "img/eventos/tina-bebidas-jardin.jpg", texto: "Bebidas heladas en tina" },
+    { foto: "img/eventos/hielera-postres-2.jpg", texto: "Listos para llevar a tu evento" },
+    { foto: "img/eventos/tina-bebidas.jpg", texto: "Barra de bebidas heladas" },
+    { foto: "img/eventos/regalo-maestro.jpg", texto: "Regalo con tarjeta personalizada" },
   ],
 };
 
@@ -90,14 +119,14 @@ window.CATEGORIAS = [
         id: "vainilla-dulce",
         nombre: "Vainilla & Dulce de Leche",
         descripcion: "Bizcocho de vainilla con dulce de leche.",
-        precio: 70, precioEvento: 65,
+        precio: 70, precioEvento: 65, peso: 182,
         foto: "img/productos/vainilla-dulce-de-leche.jpg",
       },
       {
         id: "chocolate-tradicional",
         nombre: "Chocolate Tradicional",
         descripcion: "Bizcocho de chocolate con dulce de leche.",
-        precio: 70, precioEvento: 65,
+        precio: 70, precioEvento: 65, peso: 182,
         foto: "img/productos/chocolate-tradicional.jpg",
         etiqueta: "Más vendido",
       },
@@ -105,7 +134,7 @@ window.CATEGORIAS = [
         id: "espresso-dulce",
         nombre: "Espresso & Dulce de Leche",
         descripcion: "Bizcocho de café intenso con dulce de leche.",
-        precio: 70, precioEvento: 65,
+        precio: 70, precioEvento: 65, peso: 182,
         foto: "img/productos/espresso-dulce-de-leche.jpg",
       },
       {
@@ -120,7 +149,7 @@ window.CATEGORIAS = [
         id: "doble-chocolate",
         nombre: "Doble Chocolate",
         descripcion: "Bizcocho de chocolate con ganache de chocolate.",
-        precio: 80, precioEvento: 75,
+        precio: 80, precioEvento: 75, peso: 201,
         foto: "img/productos/doble-chocolate.jpg",
         etiqueta: "Nuevo",
       },
@@ -128,7 +157,7 @@ window.CATEGORIAS = [
         id: "chocolate-oreo",
         nombre: "Chocolate & Oreo",
         descripcion: "Bizcocho de chocolate con crema de chocolate y galleta Oreo.",
-        precio: 80,
+        precio: 80, precioEvento: 75,
         foto: "img/productos/chocolate-oreo.jpg",
         etiqueta: "Nuevo",
       },
@@ -149,12 +178,13 @@ window.CATEGORIAS = [
         nombre: "Pay Nina Míngues",
         descripcion: "Tradicional pay de queso y crema.",
         precio: 95, precioEvento: 90,
+        foto: "img/productos/pay-nina.jpg",
       },
       {
         id: "pay-nina-dulce",
         nombre: "Pay Nina & Dulce",
         descripcion: "Pay de queso relleno de dulce de leche y crema.",
-        precio: 95, precioEvento: 90,
+        precio: 95, precioEvento: 90, peso: 223,
         foto: "img/productos/pay-nina-dulce.jpg",
         etiqueta: "Más vendido",
       },
@@ -260,6 +290,7 @@ window.CATEGORIAS = [
         nombre: "Sticker personalizado",
         descripcion: "Sticker de 5 cm con tu diseño o mensaje. Cuéntanos qué quieres en las notas del pedido.",
         precio: 10,
+        foto: "img/productos/sticker.jpg",
         minimo: 1, latas: 0,
       },
       {

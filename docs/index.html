@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Nina Míngues · Postres en Lata · Menú</title>
   <meta name="description" content="Postres en lata que celebran grandes momentos. Haz tu pedido por WhatsApp. Colima, México.">
-  <meta name="theme-color" content="#F4DDE2">
+  <meta name="theme-color" content="#F8E1E7">
 
   <!-- Vista previa al compartir el link en WhatsApp / Instagram / Facebook -->
   <meta property="og:type" content="website">
@@ -20,7 +20,7 @@
   <link rel="apple-touch-icon" href="img/icono.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Jost:wght@400;500;600;700&family=Kaushan+Script&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600;700&family=Kaushan+Script&family=Poppins:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="estilos.css">
 </head>
 <body>
@@ -56,8 +56,23 @@
         <li><strong>Stickers personalizados</strong> con nombres, fecha o mensaje</li>
         <li><strong>Entregamos también en domingo</strong> para eventos</li>
         <li>Pide con <span id="eventos-dias">5</span> días de anticipación</li>
+        <li>Montaje en <strong>hieleras con mucho hielo</strong> o en <strong>mesa de postres</strong></li>
       </ul>
       <a class="btn btn--wa" id="link-evento" target="_blank" rel="noopener">Cotizar mi evento por WhatsApp</a>
+    </div>
+  </section>
+
+  <section class="galeria" aria-label="Fotos de eventos">
+    <h2 class="titulo-script galeria__titulo">Así se ven en tu evento</h2>
+    <div class="galeria__fila" id="galeria"></div>
+  </section>
+
+  <section class="reutiliza" aria-labelledby="reutiliza-titulo">
+    <img src="img/extra/maceta.jpg" alt="Lata de Nina Míngues reutilizada como maceta con albahaca" loading="lazy">
+    <div>
+      <p class="eventos__pre">Después del postre</p>
+      <h2 id="reutiliza-titulo" class="titulo-script">Nuestras latas no se tiran: se transforman</h2>
+      <p>Lávala y conviértela en maceta. Siembra semillas fáciles como <strong>albahaca, cilantro, menta</strong> o <strong>flores pequeñas</strong> 🌱</p>
     </div>
   </section>
 
@@ -160,6 +175,12 @@
       <div id="selector-opciones" class="selector__opciones"></div>
       <button class="btn btn--sec" type="button" data-cerrar>Cancelar</button>
     </section>
+  </div>
+
+  <div class="visor" id="visor" hidden>
+    <button class="icono-btn visor__cerrar" type="button" aria-label="Cerrar">✕</button>
+    <img id="visor-img" alt="">
+    <p id="visor-texto"></p>
   </div>
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>

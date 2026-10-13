@@ -198,7 +198,8 @@
       enlaces.forEach(a => {
         const activa = a.getAttribute("href") === "#" + en.target.id;
         a.classList.toggle("activa", activa);
-        if (activa) a.scrollIntoView({ block: "nearest", inline: "center", behavior: "smooth" });
+        // Mover solo la barra de pestañas (scrollIntoView también movía la página y frenaba el scroll)
+        if (activa) nav.scrollTo({ left: a.offsetLeft - (nav.clientWidth - a.offsetWidth) / 2, behavior: "smooth" });
       });
     });
   }, { rootMargin: "-40% 0px -55% 0px" });

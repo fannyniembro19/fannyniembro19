@@ -44,6 +44,23 @@
 
   <main id="menu" class="menu"></main>
 
+  <section class="eventos" id="eventos" aria-labelledby="eventos-titulo">
+    <img class="eventos__foto" src="img/productos/pay-nina-dulce.jpg" alt="Latas de Nina Míngues para eventos" loading="lazy">
+    <div class="eventos__texto">
+      <p class="eventos__pre">Mesa de postres</p>
+      <h2 id="eventos-titulo" class="titulo-script">Postres para tu evento</h2>
+      <p>Hacemos de tu celebración un momento todavía más dulce, con latas individuales fáciles de servir y de llevar.</p>
+      <ul class="eventos__tipos" id="eventos-tipos"></ul>
+      <ul class="eventos__beneficios">
+        <li><strong>Precio especial</strong> desde <span id="eventos-min">15</span> latas (puedes combinar sabores)</li>
+        <li><strong>Stickers personalizados</strong> con nombres, fecha o mensaje</li>
+        <li><strong>Entregamos también en domingo</strong> para eventos</li>
+        <li>Pide con <span id="eventos-dias">5</span> días de anticipación</li>
+      </ul>
+      <a class="btn btn--wa" id="link-evento" target="_blank" rel="noopener">Cotizar mi evento por WhatsApp</a>
+    </div>
+  </section>
+
   <section class="info" aria-labelledby="info-titulo">
     <h2 id="info-titulo" class="titulo-script">Antes de pedir</h2>
     <ul id="notas" class="info__notas"></ul>
@@ -102,6 +119,12 @@
 
           <label id="campo-direccion" hidden>Dirección de entrega
             <textarea name="direccion" rows="2" autocomplete="street-address" placeholder="Calle, número, colonia y referencias"></textarea>
+          </label>
+
+          <label>¿Es para un evento? (opcional)
+            <select name="evento" id="tipo-evento">
+              <option value="">No, es para mí / regalo</option>
+            </select>
           </label>
 
           <label>Fecha de entrega

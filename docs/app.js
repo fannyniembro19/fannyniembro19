@@ -45,6 +45,10 @@
     return { lineas, latas, evento, subtotal, ahorro: normal - subtotal, piezas };
   }
 
+  function fotoDe(p, opcion) {
+    return (p.fotosOpcion && p.fotosOpcion[opcion]) || p.foto || "";
+  }
+
   function cantidadDe(id) {
     return Object.entries(carrito).reduce((s, [k, c]) => s + (k.split("|")[0] === id ? c : 0), 0);
   }
@@ -70,6 +74,12 @@
   $("#ciudad").textContent = "📍 " + N.ciudad;
   $("#notas").innerHTML = N.notas.map(t => `<li>${esc(t)}</li>`).join("");
   $("#horario").innerHTML = N.horarioTexto.map(t => `<li>${esc(t)}</li>`).join("");
+  $("#tipo-evento").insertAdjacentHTML("beforeend", N.tiposDeEvento.map(t => `<option>${esc(t)}</option>`).join(""));
+  $("#eventos-tipos").innerHTML = N.tiposDeEvento.filter(t => t !== "Otro").map(t => `<li>${esc(t)}</li>`).join("");
+  $("#eventos-min").textContent = N.latasParaEvento;
+  $("#eventos-dias").textContent = N.diasAnticipacionEvento;
+  $("#link-evento").href = `https://wa.me/${N.whatsapp}?text=${encodeURIComponent(
+    `¡Hola ${N.nombre}! Quiero cotizar postres para un evento:\n\nTipo de evento: \nFecha: \nNúmero de invitados: \nSabores que me interesan: `)}`;
   $("#pagos").insertAdjacentHTML("beforeend", N.formasDePago.map((f, i) =>
     `<label class="chip"><input type="radio" name="pago" value="${esc(f)}" ${i === 0 ? "required" : ""}> ${esc(f)}</label>`).join(""));
 
@@ -106,7 +116,8 @@
   const menu = $("#menu");
   const logoSinFoto = `<div class="tarjeta__sinfoto"><img src="img/logo.png" alt="" loading="lazy"></div>`;
 
-  nav.innerHTML = CATS.map(c => `<a href="#${slug(c.nombre)}">${esc(c.nombre)}</a>`).join("");
+  nav.innerHTML = CATS.map(c => `<a href="#${slug(c.nombre)}">${esc(c.nombre)}</a>`).join("") +
+    `<a href="#eventos">Eventos ✨</a>`;
   menu.innerHTML = CATS.map(c => `
     <section class="seccion" id="${slug(c.nombre)}">
       <h2 class="titulo-script seccion__titulo">${esc(c.nombre)}</h2>
@@ -120,7 +131,10 @@
     return `
       <article class="tarjeta" data-id="${p.id}">
         <div class="tarjeta__foto">
-          ${p.foto ? `<img src="${esc(p.foto)}" alt="${esc(p.nombre)}" loading="lazy">` : logoSinFoto}
+          ${p.fotosOpcion
+            ? `<div class="tarjeta__duo">${Object.entries(p.fotosOpcion).map(([o, f]) =>
+                `<figure><img src="${esc(f)}" alt="${esc(p.nombre)} ${esc(o)}" loading="lazy"><figcaption>${esc(o)}</figcaption></figure>`).join("")}</div>`
+            : p.foto ? `<img src="${esc(p.foto)}" alt="${esc(p.nombre)}" loading="lazy">` : logoSinFoto}
           ${p.etiqueta ? `<span class="etiqueta">¡${esc(p.etiqueta)}!</span>` : ""}
         </div>
         <div class="tarjeta__info">
@@ -178,7 +192,10 @@
   // ---------- Selector de opciones ----------
   function abrirSelector(p) {
     $("#selector-titulo").textContent = p.nombre;
-    $("#selector-opciones").innerHTML = p.opciones.map(o => `<button type="button" data-opcion="${esc(o)}">${esc(o)}</button>`).join("");
+    const fotos = !!p.fotosOpcion;
+    $("#selector-opciones").classList.toggle("con-fotos", fotos);
+    $("#selector-opciones").innerHTML = p.opciones.map(o => `<button type="button" data-opcion="${esc(o)}">${
+      fotos && p.fotosOpcion[o] ? `<img src="${esc(p.fotosOpcion[o])}" alt="">` : ""}<span>${esc(o)}</span></button>`).join("");
     $("#selector-opciones").onclick = e => {
       const b = e.target.closest("[data-opcion]");
       if (!b) return;
@@ -221,7 +238,7 @@
 
     $("#lista").innerHTML = r.lineas.length ? r.lineas.map(l => `
       <li class="item">
-        ${l.p.foto ? `<img src="${esc(l.p.foto)}" alt="">` : `<div class="item__sinfoto"></div>`}
+        ${fotoDe(l.p, l.opcion) ? `<img src="${esc(fotoDe(l.p, l.opcion))}" alt="">` : `<div class="item__sinfoto"></div>`}
         <div>
           <p class="item__nombre">${esc(l.p.nombre)}${l.opcion ? ` · ${esc(l.opcion)}` : ""}</p>
           <p class="item__detalle">${dinero(l.unit)} c/u · <strong>${dinero(l.total)}</strong></p>
@@ -256,15 +273,20 @@
   function hoyISO() {
     try { return ahoraLocal().fecha; } catch (e) { return new Date().toISOString().slice(0, 10); }
   }
+  function diaDisponible(iso, evento) {
+    const dia = new Date(iso + "T12:00:00Z").getUTCDay();
+    return !!N.horario[dia] || (evento && dia === 0 && N.domingoSoloEventos);
+  }
   function fechaMinima(evento) {
     let f = sumarDias(hoyISO(), evento ? N.diasAnticipacionEvento : N.diasAnticipacion);
-    while (!N.horario[new Date(f + "T12:00:00Z").getUTCDay()]) f = sumarDias(f, 1);
+    while (!diaDisponible(f, evento)) f = sumarDias(f, 1);
     return f;
   }
   function actualizarFecha(evento) {
     const min = fechaMinima(evento);
     form.fecha.min = min;
-    $("#fecha-ayuda").textContent = `Con ${evento ? N.diasAnticipacionEvento : N.diasAnticipacion} días de anticipación · Domingo no hay entregas · Primera fecha disponible: ${fechaBonita(min)}`;
+    const domingo = evento && N.domingoSoloEventos ? "Eventos: también entregamos en domingo" : "Domingo no hay entregas (solo eventos de 15+ latas)";
+    $("#fecha-ayuda").textContent = `Con ${evento ? N.diasAnticipacionEvento : N.diasAnticipacion} días de anticipación · ${domingo} · Primera fecha disponible: ${fechaBonita(min)}`;
   }
   function fechaBonita(iso) {
     return new Date(iso + "T12:00:00Z").toLocaleDateString("es-MX", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" });
@@ -304,6 +326,7 @@
       `Celular: ${d.celular.trim()}`,
       `Entrega: ${d.entrega === "Domicilio" ? "Envío a domicilio" : "Paso a recoger"}`,
       d.entrega === "Domicilio" ? `Dirección: ${d.direccion.trim()}` : null,
+      d.evento ? `Evento: ${d.evento}` : null,
       `Fecha: ${fechaBonita(d.fecha)}`,
       `Pago: ${d.pago}`,
       d.notas && d.notas.trim() ? `Notas: ${d.notas.trim()}` : null,
@@ -320,7 +343,7 @@
     if (d.entrega === "Domicilio" && !(d.direccion || "").trim()) return "Escribe la dirección de entrega.";
     if (!d.fecha) return "Elige la fecha de entrega.";
     if (d.fecha < fechaMinima(r.evento)) return `La primera fecha disponible es ${fechaBonita(fechaMinima(r.evento))}.`;
-    if (!N.horario[new Date(d.fecha + "T12:00:00Z").getUTCDay()]) return "Los domingos descansamos, elige otro día.";
+    if (!diaDisponible(d.fecha, r.evento)) return `Los domingos solo entregamos eventos (${N.latasParaEvento} latas o más). Elige otro día.`;
     if (!d.pago) return "Elige la forma de pago.";
     return "";
   }

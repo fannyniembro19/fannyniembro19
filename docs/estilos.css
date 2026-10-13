@@ -471,7 +471,7 @@ button, input, textarea { font: inherit; color: inherit; }
   color: var(--dorado);
 }
 .form label { display: grid; gap: 6px; font-weight: 500; font-size: .9rem; color: var(--cafe); }
-.form input:not([type="radio"]), .form textarea {
+.form input:not([type="radio"]), .form textarea, .form select {
   width: 100%;
   padding: 11px 14px;
   border: 1px solid var(--rosa-medio);
@@ -543,3 +543,56 @@ button, input, textarea { font: inherit; color: inherit; }
 }
 
 @media (min-width: 700px) { .categorias { justify-content: center; } }
+
+/* ---------- Fotos por opción (Azul / Rosa) ---------- */
+.tarjeta__duo { display: grid; grid-template-columns: 1fr 1fr; height: 100%; gap: 2px; background: var(--blanco); }
+.tarjeta__duo figure { position: relative; margin: 0; overflow: hidden; }
+.tarjeta__duo img { width: 100%; height: 100%; object-fit: cover; }
+.tarjeta__duo figcaption {
+  position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%);
+  padding: 2px 10px; border-radius: 999px;
+  background: rgba(255,255,255,.85); color: var(--cafe);
+  font-size: .75rem; font-weight: 600;
+}
+.selector__opciones.con-fotos { grid-template-columns: 1fr 1fr; }
+.selector__opciones button { display: grid; gap: 8px; justify-items: center; }
+.selector__opciones button img { width: 100%; aspect-ratio: 4 / 5; object-fit: cover; border-radius: 10px; }
+
+.form select {
+  appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, var(--cafe-bajo) 50%), linear-gradient(135deg, var(--cafe-bajo) 50%, transparent 50%);
+  background-position: calc(100% - 20px) 50%, calc(100% - 14px) 50%;
+  background-size: 6px 6px;
+  background-repeat: no-repeat;
+}
+
+/* ---------- Eventos ---------- */
+.eventos {
+  max-width: 1068px;
+  margin: 48px 16px 0;
+  display: grid;
+  background: var(--cafe);
+  color: var(--rosa-claro);
+  border-radius: var(--radio);
+  overflow: hidden;
+}
+@media (min-width: 1100px) { .eventos { margin-inline: auto; } }
+.eventos__foto { width: 100%; height: 220px; object-fit: cover; }
+.eventos__texto { padding: 24px 22px 28px; }
+.eventos__pre { margin: 0; font-size: .8rem; letter-spacing: .16em; text-transform: uppercase; color: var(--dorado-claro); }
+.eventos h2 { color: var(--rosa); font-size: clamp(2rem, 7vw, 2.6rem); margin: 4px 0 10px; }
+.eventos p { line-height: 1.5; }
+.eventos__tipos { list-style: none; padding: 0; margin: 16px 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.eventos__tipos li {
+  padding: 5px 12px; border-radius: 999px;
+  border: 1px solid rgba(201, 164, 76, .6);
+  color: var(--rosa); font-size: .85rem;
+}
+.eventos__beneficios { padding-left: 20px; margin: 0 0 22px; display: grid; gap: 6px; font-size: .95rem; }
+.eventos__beneficios strong { color: #fff; }
+.eventos__beneficios li::marker { color: var(--dorado-claro); }
+@media (min-width: 760px) {
+  .eventos { grid-template-columns: 2fr 3fr; }
+  .eventos__foto { height: 100%; min-height: 360px; }
+  .eventos__texto { padding: 34px 36px; }
+}

@@ -18,6 +18,8 @@
  *                  (si no hay foto, borra la línea y se muestra el logo)
  *    etiqueta    → "Más vendido" o "Nuevo" (opcional)
  *    opciones    → lista de opciones a elegir, ej. ["Azul", "Rosa"] (opcional)
+ *    fotosOpcion → una foto por opción, ej. { Azul: "img/...", Rosa: "img/..." }
+ *                  (opcional; la tarjeta muestra las fotos lado a lado)
  *    minimo      → cantidad mínima (4 latas del mismo sabor; 1 para extras)
  *    latas       → cuántas latas cuenta cada unidad para el descuento de
  *                  eventos (1 normalmente, 4 para la caja, 0 para extras)
@@ -41,9 +43,16 @@ window.NEGOCIO = {
   latasParaEvento: 15,        // a partir de aquí aplica el precio de eventos
   diasAnticipacion: 2,        // pedidos normales
   diasAnticipacionEvento: 5,  // pedidos de eventos (15+ latas)
+  domingoSoloEventos: true,   // domingo cerrado, pero sí se entregan eventos
   anticipo: 50,               // % de anticipo para apartar
 
   formasDePago: ["Transferencia", "Efectivo"],
+
+  // Tipos de evento que aparecen en la sección de eventos y en el pedido
+  tiposDeEvento: [
+    "Boda", "Bautizo", "XV años", "Cumpleaños", "Baby shower",
+    "Revelación de género", "Primera comunión", "Graduación", "Evento de empresa", "Otro",
+  ],
 
   // Horario (0 = domingo, 1 = lunes ... 6 = sábado). null = cerrado.
   zonaHoraria: "America/Mexico_City",
@@ -59,13 +68,13 @@ window.NEGOCIO = {
   horarioTexto: [
     "Lunes a viernes · 9:00 am – 8:00 pm",
     "Sábado · 10:00 am – 7:00 pm",
-    "Domingo · descansamos",
+    "Domingo · cerrado (solo entregas de eventos)",
   ],
 
   notas: [
     "Precio por lata · porción individual (9 cm de alto, 250 ml)",
     "Pedido mínimo: 4 latas del mismo sabor",
-    "Pedidos con 2 días de anticipación (eventos: 5 días)",
+    "Pedidos con 2 días de anticipación (eventos: 5 días, también en domingo)",
     "Precio especial en pedidos de 15 latas o más",
     "50% de anticipo para apartar tu pedido",
     "El costo de envío depende de tu dirección",
@@ -188,16 +197,24 @@ window.CATEGORIAS = [
       {
         id: "revelacion",
         nombre: "Revelación de Género",
-        descripcion: "Bizcocho con relleno sorpresa.",
+        descripcion: "Bizcocho con relleno sorpresa: ¡descubre si es niño o niña al abrirla!",
         precio: 80, precioEvento: 75,
         opciones: ["Azul", "Rosa"],
+        fotosOpcion: {
+          Azul: "img/productos/revelacion-azul.jpg",
+          Rosa: "img/productos/revelacion-rosa.jpg",
+        },
       },
       {
         id: "baby-shower",
         nombre: "Baby Shower",
-        descripcion: "Bizcocho con relleno de color.",
+        descripcion: "Bizcocho con capas de color azul o rosa.",
         precio: 80, precioEvento: 75,
         opciones: ["Azul", "Rosa"],
+        fotosOpcion: {
+          Azul: "img/productos/baby-shower-azul.jpg",
+          Rosa: "img/productos/baby-shower-rosa.jpg",
+        },
       },
     ],
   },
@@ -248,8 +265,9 @@ window.CATEGORIAS = [
       {
         id: "caja-extra",
         nombre: "Caja de regalo",
-        descripcion: "Caja de regalo para tus latas.",
+        descripcion: "Caja kraft para 4 latas, lista para regalar.",
         precio: 30,
+        foto: "img/productos/caja-kraft.jpg",
         minimo: 1, latas: 0,
       },
     ],

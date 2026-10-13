@@ -8,7 +8,10 @@ Menú con fotos, carrito y pedido directo por WhatsApp.
 - El cliente agrega latas al carrito (mínimo 4 por sabor; los extras desde 1).
 - Con **15 latas o más** aplica solo el **precio de eventos** y muestra cuánto ahorra.
 - Pide **nombre, celular, recoger o domicilio, dirección, fecha y forma de pago**.
-- La fecha respeta la anticipación (2 días, o 5 para eventos) y no permite domingos.
+- La fecha respeta la anticipación (2 días, o 5 para eventos). Los domingos solo se aceptan pedidos de eventos.
+- El cliente puede indicar el tipo de evento (boda, bautizo, XV años, cumpleaños...).
+- Sección **Postres para tu evento** con botón para cotizar por WhatsApp.
+- Baby Shower y Revelación de género muestran la foto azul y la rosa.
 - Calcula el **anticipo del 50%**. El envío se cotiza por WhatsApp.
 - Al terminar abre WhatsApp con el pedido ya escrito.
 - Muestra si está **abierto o cerrado** según el horario de Colima.
@@ -45,6 +48,10 @@ Todo está en **`docs/datos.js`**. Ahí puedes:
 - Marcar algo como **agotado**: agrega `agotado: true,`.
 - **Agregar un producto**: copia un bloque `{ ... }` completo y cambia sus datos.
 - Cambiar el **horario**, el **WhatsApp** o el **Instagram**: están al inicio del archivo.
+
+**Fotos por opción:** usa `fotosOpcion: { Azul: "img/...", Rosa: "img/..." }`.
+
+**Tipos de evento:** edítalos en `tiposDeEvento`, al inicio del archivo.
 
 **Fotos:** súbelas a `docs/img/productos/` (formato .jpg, idealmente verticales 4:5 y de unos 800 px de ancho) y escribe su ruta en `foto:`. Los productos sin foto muestran el logo.
 

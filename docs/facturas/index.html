@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Mis Facturas</title>
+  <meta name="description" content="Toma foto a tu ticket y te ayudo a facturarlo.">
+  <meta name="theme-color" content="#1F2A44">
+  <meta name="robots" content="noindex">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icono.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icono.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="estilos.css?v=1">
+</head>
+<body>
+  <header class="barra">
+    <h1>Mis Facturas</h1>
+    <nav class="pestanas" role="tablist">
+      <button class="pestana activa" data-vista="ticket" role="tab">Ticket</button>
+      <button class="pestana" data-vista="historial" role="tab">Historial</button>
+      <button class="pestana" data-vista="datos" role="tab">Mis datos</button>
+    </nav>
+  </header>
+
+  <main>
+    <!-- ============ TICKET ============ -->
+    <section class="vista" id="vista-ticket">
+      <div class="aviso" id="aviso-config" hidden>
+        Antes de empezar llena <strong>Mis datos</strong> (tu RFC, email y clave de Claude).
+        <button class="btn btn--chico" data-ir="datos">Ir a Mis datos</button>
+      </div>
+
+      <label class="foto" id="zona-foto">
+        <input type="file" id="input-foto" accept="image/*" capture="environment" hidden>
+        <img id="vista-previa" alt="" hidden>
+        <span class="foto__texto" id="foto-texto">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3 7.2 5H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-3.2L15 3H9Zm3 5a5 5 0 1 1 0 10 5 5 0 0 1 0-10Zm0 2a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z"/></svg>
+          Tomar foto del ticket
+        </span>
+      </label>
+
+      <button class="btn btn--grande" id="btn-leer" disabled>Leer ticket</button>
+      <p class="estado" id="estado" role="status" aria-live="polite"></p>
+
+      <div id="resultado" hidden>
+        <div class="tarjeta">
+          <p class="etiqueta">Proveedor</p>
+          <h2 id="r-proveedor">—</h2>
+          <p class="sub" id="r-emisor"></p>
+          <p class="nota" id="r-notas" hidden></p>
+        </div>
+
+        <div class="tarjeta">
+          <p class="etiqueta">Página de facturación</p>
+          <div class="fila">
+            <input type="url" id="r-portal" placeholder="https://...">
+          </div>
+          <p class="sub" id="r-portal-origen"></p>
+        </div>
+
+        <div class="tarjeta">
+          <p class="etiqueta">Datos para llenar</p>
+          <ul class="campos" id="r-campos"></ul>
+        </div>
+
+        <div class="acciones">
+          <button class="btn btn--grande" id="btn-facturar">1 · Copiar datos y abrir página</button>
+          <p class="ayuda">
+            2 · En la página de facturación toca tu marcador <strong>Llenar factura</strong>
+            (o copia cada dato con los botones de arriba).<br>
+            3 · Revisa, resuelve el captcha si hay, y toca <strong>Generar / Facturar</strong>.
+            La factura llega a tu email.
+          </p>
+          <button class="btn btn--linea" id="btn-facturado">Ya la generé ✓</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ HISTORIAL ============ -->
+    <section class="vista" id="vista-historial" hidden>
+      <p class="sub">Tus tickets se guardan solo en este celular.</p>
+      <ul class="historial" id="lista-historial"></ul>
+      <p class="vacio" id="historial-vacio">Todavía no hay tickets.</p>
+    </section>
+
+    <!-- ============ MIS DATOS ============ -->
+    <section class="vista" id="vista-datos" hidden>
+      <form id="form-datos" class="tarjeta" autocomplete="on">
+        <p class="etiqueta">Datos fiscales (receptor)</p>
+        <label>RFC <input name="rfc" required maxlength="13" autocapitalize="characters" placeholder="XAXX010101000"></label>
+        <label>Nombre o razón social <small>(tal como en tu Constancia)</small>
+          <input name="razonSocial" required autocapitalize="characters"></label>
+        <label>Código postal fiscal <input name="cp" required inputmode="numeric" maxlength="5"></label>
+        <label>Régimen fiscal
+          <select name="regimen" required>
+            <option value="">Elige…</option>
+            <option value="605">605 · Sueldos y salarios</option>
+            <option value="606">606 · Arrendamiento</option>
+            <option value="612">612 · Personas físicas con actividad empresarial y profesional</option>
+            <option value="621">621 · Incorporación fiscal</option>
+            <option value="625">625 · Actividades por plataformas tecnológicas</option>
+            <option value="626">626 · Régimen Simplificado de Confianza (RESICO)</option>
+            <option value="601">601 · General de ley personas morales</option>
+            <option value="616">616 · Sin obligaciones fiscales</option>
+          </select>
+        </label>
+        <label>Uso de CFDI
+          <select name="usoCfdi" required>
+            <option value="G03">G03 · Gastos en general</option>
+            <option value="G01">G01 · Adquisición de mercancías</option>
+            <option value="I04">I04 · Equipo de cómputo</option>
+            <option value="D01">D01 · Honorarios médicos y dentales</option>
+            <option value="S01">S01 · Sin efectos fiscales</option>
+          </select>
+        </label>
+        <label>Email para facturas <input name="email" type="email" required></label>
+
+        <p class="etiqueta">Clave de Claude (para leer tickets)</p>
+        <label>API key de Anthropic
+          <input name="apiKey" type="password" placeholder="sk-ant-..." autocomplete="off"></label>
+        <p class="ayuda">Sácala en <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a>.
+          Se guarda solo en este celular. Cada ticket cuesta más o menos 1 a 3 pesos.</p>
+
+        <button class="btn btn--grande" type="submit">Guardar</button>
+        <p class="estado" id="estado-datos" role="status"></p>
+      </form>
+
+      <div class="tarjeta">
+        <p class="etiqueta">Marcador «Llenar factura»</p>
+        <p class="ayuda">Este botón llena solo los campos en la página de facturación.
+          Guárdalo una vez en tus marcadores:</p>
+        <p><a class="marcador" id="marcador" href="#">Llenar factura</a></p>
+        <ul class="ayuda pasos">
+          <li><strong>Computadora:</strong> arrastra el botón rosa a la barra de marcadores.</li>
+          <li><strong>Celular (Chrome):</strong> toca <em>Copiar código</em>, guarda cualquier página como marcador,
+            edítalo, ponle de nombre <em>Llenar factura</em> y pega el código en la dirección (URL).
+            Para usarlo, en la página de facturación escribe «Llenar factura» en la barra y toca el marcador.</li>
+        </ul>
+        <button class="btn btn--linea" id="btn-copiar-marcador">Copiar código del marcador</button>
+      </div>
+    </section>
+  </main>
+
+  <div class="toast" id="toast" hidden></div>
+
+  <script type="module" src="app.js?v=1"></script>
+</body>
+</html>

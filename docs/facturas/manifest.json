@@ -1,0 +1,12 @@
+{
+  "name": "Mis Facturas",
+  "short_name": "Facturas",
+  "description": "Toma foto a tu ticket y te ayudo a facturarlo.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#FFF8EE",
+  "theme_color": "#1F2A44",
+  "lang": "es-MX",
+  "icons": [{ "src": "icono.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}

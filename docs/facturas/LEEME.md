@@ -3,7 +3,7 @@
 App para facturar tus gastos: tomas foto al ticket, Claude detecta el proveedor y
 busca su página de facturación, y un marcador llena el formulario con tus datos.
 
-Dirección (cuando GitHub Pages esté activo): **https://fannyniembro19.github.io/fannyniembro19/facturas/**
+Dirección: **https://fannyniembro19.github.io/fannyniembro19/facturas/**
 
 ## Cómo se usa
 

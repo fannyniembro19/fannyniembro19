@@ -1,4 +1,7 @@
-// Mis Facturas: foto del ticket → Claude lee el proveedor y busca su portal → copia datos → marcador llena el formulario.
+// Mis Facturas: foto del ticket → se leen proveedor y datos (gratis en el celular, o con Claude si hay clave)
+// → copia datos → marcador llena el formulario.
+
+import { leerTextoTicket, datosDelTexto } from "./lector.js?v=2";
 
 const SDK_URL = "https://cdn.jsdelivr.net/npm/@anthropic-ai/sdk@0.130.0/+esm";
 const MODELO = "claude-opus-5-5";
@@ -37,7 +40,7 @@ document.querySelectorAll("[data-ir]").forEach((b) => b.addEventListener("click"
 
 function revisarConfig() {
   const d = misDatos();
-  $("#aviso-config").hidden = Boolean(d.rfc && d.email && d.apiKey);
+  $("#aviso-config").hidden = Boolean(d.rfc && d.email);
 }
 
 // ---------- Mis datos ----------
@@ -124,61 +127,16 @@ Si un dato no se ve, deja "" (no inventes). Copia los números exactamente como 
 
 async function leerTicket() {
   const d = misDatos();
-  if (!d.apiKey) { irA("datos"); toast("Primero pon tu API key de Claude."); return; }
   const btn = $("#btn-leer");
   btn.disabled = true;
-  estado($("#estado"), "Leyendo ticket y buscando su página de facturación…");
   try {
-    const { default: Anthropic } = await import(SDK_URL);
-    const client = new Anthropic({ apiKey: d.apiKey, dangerouslyAllowBrowser: true });
-
-    const conocidos = guardado.leer(K_PORTALES, {});
-    const lista = Object.values(conocidos).map((p) => `- ${p.nombre}: ${p.url}`).join("\n");
-    const messages = [{
-      role: "user",
-      content: [
-        { type: "image", source: { type: "base64", media_type: "image/jpeg", data: fotoBase64 } },
-        { type: "text", text: "Este es el ticket." + (lista ? `\nPortales que ya me funcionaron (úsalos si es el mismo proveedor, portal_fuente "conocido"):\n${lista}` : "") },
-      ],
-    }];
-
-    let resp;
-    for (let vuelta = 0; vuelta < 4; vuelta++) {
-      resp = await client.beta.messages.create({
-        model: MODELO,
-        max_tokens: 16000,
-        system: SISTEMA,
-        output_config: { effort: "medium" },
-        tools: [{ type: "web_search_20260209", name: "web_search", max_uses: 3, user_location: { type: "approximate", country: "MX" } }],
-        // Si el modelo declina por error, la API reintenta sola con otro modelo.
-        betas: ["server-side-fallback-2026-07-01"],
-        fallbacks: "default",
-        messages,
-      });
-      if (resp.stop_reason !== "pause_turn") break;
-      messages.push({ role: "assistant", content: resp.content }); // la búsqueda sigue en curso
-    }
-    if (resp.stop_reason === "refusal") throw new Error("Claude no pudo procesar esta imagen. Intenta con otra foto.");
-
-    const texto = resp.content.filter((b) => b.type === "text").map((b) => b.text).join("\n");
-    const datos = extraerJSON(texto);
-    if (!datos) throw new Error("No entendí la respuesta. Intenta de nuevo con una foto más clara.");
-
-    // Si ya tenemos un portal guardado para este proveedor, ese manda.
-    const previo = conocidos[clave(datos.proveedor)];
-    if (previo && previo.url) { datos.portal_url = previo.url; datos.portal_fuente = "conocido"; }
-
-    const registro = { id: Date.now(), creado: new Date().toISOString(), datos, facturado: false };
-    const hist = guardado.leer(K_HISTORIAL, []);
-    hist.unshift(registro);
-    guardado.escribir(K_HISTORIAL, hist.slice(0, 200));
-
-    mostrar(registro);
-    estado($("#estado"), "Listo ✓", "ok");
+    const datos = d.apiKey ? await leerConClaude(d.apiKey) : await leerGratis();
+    terminarLectura(datos);
   } catch (err) {
     console.error(err);
     let msg = err.message || "Algo falló.";
-    if (err.status === 401) msg = "La API key no es válida. Revísala en Mis datos.";
+    if (err.status === 401) msg = "La clave de Claude no es válida. Bórrala en Mis datos para usar la lectura gratis.";
+    else if (err.status === 400 && /credit|balance/i.test(msg)) msg = "Tu clave de Claude no tiene saldo. Bórrala en Mis datos para usar la lectura gratis.";
     else if (err.status === 429) msg = "Demasiadas solicitudes; espera un minuto e intenta otra vez.";
     else if (err.status >= 500) msg = "El servicio de Claude no respondió. Intenta en un momento.";
     else if (err instanceof TypeError) msg = "Sin conexión. Revisa tu internet.";
@@ -188,6 +146,66 @@ async function leerTicket() {
   }
 }
 $("#btn-leer").addEventListener("click", leerTicket);
+
+async function leerGratis() {
+  estado($("#estado"), "Preparando el lector (la primera vez tarda un poco)…");
+  const texto = await leerTextoTicket(fotoBase64, (p) => estado($("#estado"), `Leyendo ticket… ${p}%`));
+  if (texto.replace(/\s/g, "").length < 15) throw new Error("No se alcanza a leer el ticket. Toma la foto más de cerca, derecha y con buena luz.");
+  return datosDelTexto(texto);
+}
+
+async function leerConClaude(apiKey) {
+  estado($("#estado"), "Leyendo ticket y buscando su página de facturación…");
+  const { default: Anthropic } = await import(SDK_URL);
+  const client = new Anthropic({ apiKey, dangerouslyAllowBrowser: true });
+
+  const conocidos = guardado.leer(K_PORTALES, {});
+  const lista = Object.values(conocidos).map((p) => `- ${p.nombre}: ${p.url}`).join("\n");
+  const messages = [{
+    role: "user",
+    content: [
+      { type: "image", source: { type: "base64", media_type: "image/jpeg", data: fotoBase64 } },
+      { type: "text", text: "Este es el ticket." + (lista ? `\nPortales que ya me funcionaron (úsalos si es el mismo proveedor, portal_fuente "conocido"):\n${lista}` : "") },
+    ],
+  }];
+
+  let resp;
+  for (let vuelta = 0; vuelta < 4; vuelta++) {
+    resp = await client.beta.messages.create({
+      model: MODELO,
+      max_tokens: 16000,
+      system: SISTEMA,
+      output_config: { effort: "medium" },
+      tools: [{ type: "web_search_20260209", name: "web_search", max_uses: 3, user_location: { type: "approximate", country: "MX" } }],
+      // Si el modelo declina por error, la API reintenta sola con otro modelo.
+      betas: ["server-side-fallback-2026-07-01"],
+      fallbacks: "default",
+      messages,
+    });
+    if (resp.stop_reason !== "pause_turn") break;
+    messages.push({ role: "assistant", content: resp.content }); // la búsqueda sigue en curso
+  }
+  if (resp.stop_reason === "refusal") throw new Error("Claude no pudo procesar esta imagen. Intenta con otra foto.");
+
+  const texto = resp.content.filter((b) => b.type === "text").map((b) => b.text).join("\n");
+  const datos = extraerJSON(texto);
+  if (!datos) throw new Error("No entendí la respuesta. Intenta de nuevo con una foto más clara.");
+  return datos;
+}
+
+function terminarLectura(datos) {
+  // Si ya tenemos un portal guardado para este proveedor, ese manda.
+  const previo = guardado.leer(K_PORTALES, {})[clave(datos.proveedor)];
+  if (previo && previo.url) { datos.portal_url = previo.url; datos.portal_fuente = "conocido"; }
+
+  const registro = { id: Date.now(), creado: new Date().toISOString(), datos, facturado: false };
+  const hist = guardado.leer(K_HISTORIAL, []);
+  hist.unshift(registro);
+  guardado.escribir(K_HISTORIAL, hist.slice(0, 200));
+
+  mostrar(registro);
+  estado($("#estado"), "Listo ✓ Revisa los datos.", "ok");
+}
 
 function extraerJSON(texto) {
   const bloque = texto.match(/```(?:json)?\s*([\s\S]*?)```/);
@@ -202,37 +220,52 @@ const FUENTES = {
   ticket: "Viene impresa en el ticket.",
   busqueda: "La encontré buscando en internet; confirma que sea la oficial.",
   conocido: "Es la que usaste antes con este proveedor.",
-  no_encontrado: "No la encontré. Pega aquí la dirección y la recordaré.",
+  no_encontrado: "No venía en el ticket. Toca Buscar, abre la página oficial, copia su dirección y pégala aquí: la recordaré.",
 };
 
 function mostrar(registro) {
   actual = registro;
   const x = registro.datos;
   const d = misDatos();
-  $("#r-proveedor").textContent = x.proveedor || "Proveedor no identificado";
+  $("#r-proveedor").value = x.proveedor || "";
   $("#r-emisor").textContent = [x.emisor_razon_social, x.emisor_rfc].filter(Boolean).join(" · ");
   $("#r-notas").textContent = x.notas || "";
   $("#r-notas").hidden = !x.notas;
   $("#r-portal").value = x.portal_url || "";
   $("#r-portal-origen").textContent = FUENTES[x.portal_fuente] || "";
 
-  const campos = [
-    ["Folio / ticket", x.folio], ["Tienda / sucursal", x.tienda], ["Fecha", x.fecha], ["Total", x.total],
-    ...(x.campos_extra || []).map((c) => [c.etiqueta, c.valor]),
+  // Datos del ticket: siempre visibles y editables (la lectura puede equivocarse).
+  const delTicket = [
+    ["Folio / ticket", () => x.folio, (v) => { x.folio = v; }],
+    ["Tienda / sucursal", () => x.tienda, (v) => { x.tienda = v; }],
+    ["Fecha (año-mes-día)", () => x.fecha, (v) => { x.fecha = v; }],
+    ["Total", () => x.total, (v) => { x.total = v; }],
+    ...(x.campos_extra || []).map((c) => [c.etiqueta, () => c.valor, (v) => { c.valor = v; }]),
+  ];
+  const tuyos = [
     ["Tu RFC", d.rfc], ["Razón social", d.razonSocial], ["Código postal", d.cp],
     ["Régimen fiscal", d.regimen], ["Uso de CFDI", d.usoCfdi], ["Email", d.email],
   ].filter(([, v]) => v);
 
-  const ul = $("#r-campos");
-  ul.replaceChildren(...campos.map(([nombre, valor]) => {
+  const fila = (nombre, valorEl, leer) => {
     const li = document.createElement("li");
     li.innerHTML = `<span class="c-texto"><span class="c-nombre"></span><span class="c-valor"></span></span>
       <button class="btn btn--copiar" type="button">Copiar</button>`;
     li.querySelector(".c-nombre").textContent = nombre;
-    li.querySelector(".c-valor").textContent = valor;
-    li.querySelector("button").addEventListener("click", () => copiar(valor, `${nombre} copiado`));
+    li.querySelector(".c-valor").append(valorEl);
+    li.querySelector("button").addEventListener("click", () => copiar(leer(), `${nombre} copiado`));
     return li;
-  }));
+  };
+  $("#r-campos").replaceChildren(
+    ...delTicket.map(([nombre, leer, poner]) => {
+      const inp = document.createElement("input");
+      inp.value = leer() || "";
+      inp.placeholder = "no se leyó; escríbelo";
+      inp.addEventListener("change", () => { poner(inp.value.trim()); actualizarHistorial(registro); });
+      return fila(nombre, inp, () => inp.value);
+    }),
+    ...tuyos.map(([nombre, valor]) => fila(nombre, document.createTextNode(valor), () => valor)),
+  );
 
   $("#btn-facturado").textContent = registro.facturado ? "Facturado ✓ (tocar para desmarcar)" : "Ya la generé ✓";
   $("#resultado").hidden = false;
@@ -263,6 +296,23 @@ function recordarPortal() {
   guardado.escribir(K_PORTALES, p);
   actualizarHistorial(actual);
 }
+$("#r-proveedor").addEventListener("change", () => {
+  if (!actual) return;
+  actual.datos.proveedor = $("#r-proveedor").value.trim();
+  const previo = guardado.leer(K_PORTALES, {})[clave(actual.datos.proveedor)];
+  if (previo && previo.url && !$("#r-portal").value.trim()) {
+    $("#r-portal").value = previo.url;
+    $("#r-portal-origen").textContent = FUENTES.conocido;
+  }
+  actualizarHistorial(actual);
+});
+
+$("#btn-buscar-portal").addEventListener("click", () => {
+  const nombre = $("#r-proveedor").value.trim();
+  if (!nombre) { toast("Escribe primero el nombre de la tienda."); $("#r-proveedor").focus(); return; }
+  window.open("https://www.google.com/search?q=" + encodeURIComponent(`facturación ${nombre} portal oficial`), "_blank", "noopener");
+});
+
 $("#r-portal").addEventListener("change", () => {
   recordarPortal();
   $("#r-portal-origen").textContent = "Guardada para la próxima vez.";

@@ -13,7 +13,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="estilos.css?v=1">
+  <link rel="stylesheet" href="estilos.css?v=2">
 </head>
 <body>
   <header class="barra">
@@ -29,7 +29,7 @@
     <!-- ============ TICKET ============ -->
     <section class="vista" id="vista-ticket">
       <div class="aviso" id="aviso-config" hidden>
-        Antes de empezar llena <strong>Mis datos</strong> (tu RFC, email y clave de Claude).
+        Antes de empezar llena <strong>Mis datos</strong> (tu RFC, nombre, código postal y email).
         <button class="btn btn--chico" data-ir="datos">Ir a Mis datos</button>
       </div>
 
@@ -48,7 +48,7 @@
       <div id="resultado" hidden>
         <div class="tarjeta">
           <p class="etiqueta">Proveedor</p>
-          <h2 id="r-proveedor">—</h2>
+          <input id="r-proveedor" class="titulo-input" placeholder="Escribe el nombre de la tienda">
           <p class="sub" id="r-emisor"></p>
           <p class="nota" id="r-notas" hidden></p>
         </div>
@@ -57,12 +57,14 @@
           <p class="etiqueta">Página de facturación</p>
           <div class="fila">
             <input type="url" id="r-portal" placeholder="https://...">
+            <button class="btn btn--chico" id="btn-buscar-portal" type="button">Buscar</button>
           </div>
           <p class="sub" id="r-portal-origen"></p>
         </div>
 
         <div class="tarjeta">
           <p class="etiqueta">Datos para llenar</p>
+          <p class="sub">Revisa que estén bien; puedes corregirlos tocándolos.</p>
           <ul class="campos" id="r-campos"></ul>
         </div>
 
@@ -118,11 +120,14 @@
         </label>
         <label>Email para facturas <input name="email" type="email" required></label>
 
-        <p class="etiqueta">Clave de Claude (para leer tickets)</p>
-        <label>API key de Anthropic
-          <input name="apiKey" type="password" placeholder="sk-ant-..." autocomplete="off"></label>
-        <p class="ayuda">Sácala en <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a>.
-          Se guarda solo en este celular. Cada ticket cuesta más o menos 1 a 3 pesos.</p>
+        <details class="opcional">
+          <summary>Opcional: clave de Claude (lectura más precisa, de pago)</summary>
+          <p class="ayuda">Sin clave, la app lee tus tickets <strong>gratis</strong> en tu celular.
+            Con una clave de <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a>
+            la lectura es más precisa y busca sola la página de facturación (cuesta 1 a 3 pesos por ticket). Déjalo vacío si no la tienes.</p>
+          <label>API key de Anthropic
+            <input name="apiKey" type="password" placeholder="sk-ant-... (opcional)" autocomplete="off"></label>
+        </details>
 
         <button class="btn btn--grande" type="submit">Guardar</button>
         <p class="estado" id="estado-datos" role="status"></p>
@@ -146,6 +151,6 @@
 
   <div class="toast" id="toast" hidden></div>
 
-  <script type="module" src="app.js?v=1"></script>
+  <script type="module" src="app.js?v=2"></script>
 </body>
 </html>

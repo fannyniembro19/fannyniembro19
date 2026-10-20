@@ -73,6 +73,7 @@ $("#btn-copiar-marcador").addEventListener("click", async () => {
 
 // ---------- Foto ----------
 let fotoBase64 = null;
+let fotoOriginal = null; // archivo tal cual, para que el lector gratis vea todo el detalle
 const K_CAMARA = "facturas.abriendoCamara";
 async function alElegirFoto(e) {
   try { sessionStorage.removeItem(K_CAMARA); } catch (x) { /* nada */ }
@@ -81,7 +82,8 @@ async function alElegirFoto(e) {
   if (!archivo) return;
   estado($("#estado"), "Abriendo foto…");
   try {
-    fotoBase64 = await reducirImagen(archivo, 1600);
+    fotoBase64 = await reducirImagen(archivo, 2000);
+    fotoOriginal = archivo;
     $("#vista-previa").src = "data:image/jpeg;base64," + fotoBase64;
     $("#vista-previa").hidden = false;
     $("#zona-foto").classList.add("con-foto");
@@ -165,10 +167,16 @@ $("#btn-leer").addEventListener("click", leerTicket);
 
 async function leerGratis() {
   estado($("#estado"), "Preparando el lector (la primera vez tarda un poco)…");
-  const { leerTextoTicket, datosDelTexto } = await import("./lector.js?v=4");
-  const texto = await leerTextoTicket(fotoBase64, (p) => estado($("#estado"), `Leyendo ticket… ${p}%`));
-  if (texto.replace(/\s/g, "").length < 15) throw new Error("No se alcanza a leer el ticket. Toma la foto más de cerca, derecha y con buena luz.");
-  return datosDelTexto(texto);
+  const { leerTicketGratis } = await import("./lector.js?v=7");
+  const url = URL.createObjectURL(fotoOriginal);
+  try {
+    const datos = await leerTicketGratis(url, (pasada, p) =>
+      estado($("#estado"), pasada ? `Revisando otra vez para encontrar lo que faltó… ${p}%` : `Leyendo ticket… ${p}%`));
+    if (datos.texto.replace(/\s/g, "").length < 15) throw new Error("No se alcanza a leer el ticket. Toma la foto más de cerca, derecha y con buena luz.");
+    return datos;
+  } finally {
+    URL.revokeObjectURL(url);
+  }
 }
 
 async function leerConClaude(apiKey) {
@@ -237,6 +245,7 @@ const FUENTES = {
   ticket: "Viene impresa en el ticket.",
   busqueda: "La encontré buscando en internet; confirma que sea la oficial.",
   conocido: "Es la que usaste antes con este proveedor.",
+  catalogo: "Es la página oficial de facturación de esta tienda.",
   no_encontrado: "No venía en el ticket. Toca Buscar, abre la página oficial, copia su dirección y pégala aquí: la recordaré.",
 };
 

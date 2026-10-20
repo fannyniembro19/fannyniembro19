@@ -13,7 +13,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="estilos.css?v=4">
+  <link rel="stylesheet" href="estilos.css?v=10">
 </head>
 <body>
   <header class="barra">
@@ -28,6 +28,11 @@
   <main>
     <!-- ============ TICKET ============ -->
     <section class="vista" id="vista-ticket">
+      <div class="aviso" id="aviso-version" hidden>
+        Hay una versión nueva de la app.
+        <button class="btn btn--chico" id="btn-actualizar">Actualizar</button>
+      </div>
+
       <div class="aviso" id="aviso-config" hidden>
         Antes de empezar llena <strong>Mis datos</strong> (tu RFC, nombre, código postal y email).
         <button class="btn btn--chico" data-ir="datos">Ir a Mis datos</button>
@@ -164,8 +169,10 @@
     </section>
   </main>
 
+  <p class="version" id="version"></p>
+
   <div class="toast" id="toast" hidden></div>
 
-  <script type="module" src="app.js?v=8"></script>
+  <script type="module" src="app.js?v=10"></script>
 </body>
 </html>

@@ -167,11 +167,14 @@ $("#btn-leer").addEventListener("click", leerTicket);
 
 async function leerGratis() {
   estado($("#estado"), "Preparando el lector (la primera vez tarda un poco)…");
-  const { leerTicketGratis } = await import("./lector.js?v=9");
+  const { leerTicketGratis } = await import("./lector.js?v=10");
   const url = URL.createObjectURL(fotoOriginal);
   try {
     const datos = await leerTicketGratis(url, (pasada, p) =>
       estado($("#estado"), pasada ? `Revisando otra vez para encontrar lo que faltó… ${p}%` : `Leyendo ticket… ${p}%`));
+    estado($("#estado"), "Buscando código de barras o QR…");
+    const { leerCodigos, aplicarCodigos } = await import("./codigos.js?v=1");
+    aplicarCodigos(datos, await leerCodigos(fotoOriginal));
     if (datos.texto.replace(/\s/g, "").length < 15) throw new Error("No se alcanza a leer el ticket. Toma la foto más de cerca, derecha y con buena luz.");
     return datos;
   } finally {
@@ -246,6 +249,7 @@ const FUENTES = {
   busqueda: "La encontré buscando en internet; confirma que sea la oficial.",
   conocido: "Es la que usaste antes con este proveedor.",
   catalogo: "Es la página oficial de facturación de esta tienda.",
+  qr: "Viene en el código QR del ticket.",
   no_encontrado: "No venía en el ticket. Toca Buscar, abre la página oficial, copia su dirección y pégala aquí: la recordaré.",
 };
 
@@ -413,6 +417,16 @@ function pintarHistorial() {
 // Cualquier error inesperado se muestra en pantalla (para poder mandar captura).
 window.addEventListener("error", (e) => estado($("#estado"), "Error: " + (e.message || "desconocido"), "error"));
 window.addEventListener("unhandledrejection", (e) => estado($("#estado"), "Error: " + ((e.reason && e.reason.message) || e.reason || "desconocido"), "error"));
+
+// ---------- versión ----------
+// Si ya hay una versión más nueva publicada, avisamos para no quedarnos con la vieja guardada.
+const VERSION = 10;
+$("#version").textContent = "Versión " + VERSION;
+fetch("version.json?t=" + Date.now(), { cache: "no-store" })
+  .then((r) => r.json())
+  .then((v) => { if (v.version > VERSION) $("#aviso-version").hidden = false; })
+  .catch(() => {});
+$("#btn-actualizar").addEventListener("click", () => location.reload());
 
 // ---------- inicio ----------
 // La primera versión guardaba una página de Walmart que ya no sirve: la olvidamos.

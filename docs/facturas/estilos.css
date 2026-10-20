@@ -148,3 +148,4 @@ form label small { font-weight: 400; color: #8d8172; }
 .btn--rosa { background: var(--rosa); color: var(--marino); }
 .texto-leido summary { cursor: pointer; font-weight: 600; color: var(--marino); }
 .texto-leido pre { white-space: pre-wrap; word-break: break-word; font-size: .8rem; background: var(--marfil); padding: 10px; border-radius: 10px; max-height: 320px; overflow: auto; }
+.version { text-align: center; font-size: .75rem; color: #8d8172; margin: 0 0 24px; }

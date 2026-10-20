@@ -33,6 +33,8 @@
     { si: (t) => /\b(total|importe|monto)\b/.test(t), valor: () => d.total },
     { si: (t) => /\bfecha\b/.test(t), valor: (el) => fechaPara(el) },
   ];
+  // «# Transacción» (Walmart) es el TR, no el folio.
+  reglas.push({ si: (t) => /transaccion/.test(t) && d.transaccion, valor: () => d.transaccion });
   // Campos propios de este ticket (TR, TC, caja, web id, ...). Van antes que folio/tienda genéricos.
   for (const x of d.extras || []) {
     const e = norm(x.etiqueta);

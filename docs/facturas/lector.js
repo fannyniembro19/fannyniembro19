@@ -37,15 +37,28 @@ export async function leerTicketGratis(imagen, alAvanzar) {
       },
       errorHandler: () => alFallar(),
     });
-    let datos = null, textos = [];
+    let datos = null, primera = null;
+    const textos = [];
     for (; pasada < pasadas.length; pasada++) {
-      const { data } = await worker.recognize(await realzar(imagen, pasadas[pasada]));
+      const prep = await realzar(imagen, pasadas[pasada]);
+      const { data } = await worker.recognize(prep, {}, { text: true, blocks: true });
+      if (!primera) primera = { prep, data };
       const texto = data.text || "";
       textos.push(texto);
       datos = datos ? juntar(datos, datosDelTexto(texto)) : datosDelTexto(texto);
-      if (datos.fecha && datos.total && (datos.folio || datos.campos_extra.length)) break;
+      if (completo(datos)) break;
     }
-    datos.texto = textos.map((t) => t.trim()).join("\n\n— segunda lectura —\n\n");
+    // Walmart: volvemos a leer, agrandados y solo con números, el renglón del TC y el de arriba (TR).
+    if (esWalmart(datos)) {
+      pasada = 2;
+      try {
+        const r = await leerCodigosWalmart(worker, primera.prep, renglones(primera.data));
+        if (r.TC && !extra(datos, "TC")) ponerExtra(datos, "TC", r.TC);
+        if (r.TR && r.TR.length >= extra(datos, "TR").length) ponerExtra(datos, "TR", r.TR);
+        if (r.texto) textos.push(r.texto);
+      } catch (e) { console.warn("Lectura fina de Walmart falló", e); }
+    }
+    datos.texto = textos.map((t) => t.trim()).join("\n\n— otra lectura —\n\n");
     return datos;
   })();
   try {
@@ -53,6 +66,72 @@ export async function leerTicketGratis(imagen, alAvanzar) {
   } finally {
     if (worker) worker.terminate().catch(() => {});
   }
+}
+
+const esWalmart = (d) => /^(Walmart|Bodega Aurrera|Sam's Club)$/.test(d.proveedor) || d.portal_url === WALMART;
+const extra = (d, et) => (d.campos_extra.find((c) => c.etiqueta === et) || {}).valor || "";
+function ponerExtra(d, et, valor) {
+  const ya = d.campos_extra.find((c) => c.etiqueta === et);
+  if (ya) ya.valor = valor; else d.campos_extra.unshift({ etiqueta: et, valor });
+  d.campos_extra.sort((a, b) => (["TC", "TR"].indexOf(a.etiqueta) + 1 || 9) - (["TC", "TR"].indexOf(b.etiqueta) + 1 || 9));
+}
+function completo(d) {
+  if (esWalmart(d)) return Boolean(d.total && extra(d, "TC") && extra(d, "TR"));
+  return Boolean(d.fecha && d.total && (d.folio || d.campos_extra.length));
+}
+
+function renglones(data) {
+  const ls = [];
+  for (const b of data.blocks || []) for (const p of b.paragraphs || []) for (const l of p.lines || []) ls.push(l);
+  return ls.sort((a, b) => a.bbox.y0 - b.bbox.y0);
+}
+
+async function leerCodigosWalmart(worker, prepUrl, ls) {
+  const img = await new Promise((ok, mal) => { const i = new Image(); i.onload = () => ok(i); i.onerror = mal; i.src = prepUrl; });
+  const digitos = (l) => (l.text.replace(/\s/g, "").match(/\d+/g) || []).reduce((m, x) => Math.max(m, x.length), 0);
+  // El TC es el renglón con el número más largo (18 o más dígitos seguidos).
+  let iTC = -1;
+  ls.forEach((l, i) => { if (digitos(l) >= 15 && (iTC < 0 || digitos(l) > digitos(ls[iTC]))) iTC = i; });
+  if (iTC < 0) return {};
+
+  // Franja un poco más alta que el renglón: los tickets casi siempre salen algo inclinados.
+  const franja = async (bbox, lista, psm = "7", holgura = 0.4) => {
+    const alto = Math.max(8, bbox.y1 - bbox.y0), pad = Math.round(alto * holgura);
+    const y0 = Math.max(0, bbox.y0 - pad), y1 = Math.min(img.height, bbox.y1 + pad);
+    const esc = Math.max(1, Math.min(4, 70 / alto));
+    const c = document.createElement("canvas");
+    c.width = Math.round(img.width * esc); c.height = Math.round((y1 - y0) * esc);
+    const ctx = c.getContext("2d");
+    ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, c.width, c.height);
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(img, 0, y0, img.width, y1 - y0, 0, 0, c.width, c.height);
+    await worker.setParameters({ tessedit_char_whitelist: lista, tessedit_pageseg_mode: psm });
+    const { data } = await worker.recognize(c);
+    return (data.text || "").trim();
+  };
+
+  const r = {};
+  try {
+    const tTC = await franja(ls[iTC].bbox, "TC#0123456789 ");
+    const sinEsp = tTC.replace(/\s/g, "");
+    const largo = (sinEsp.match(/\d{15,26}/g) || []).sort((a, b) => b.length - a.length)[0];
+    if (largo) r.TC = /^T?C\d/.test(sinEsp) && largo.length >= 22 && largo[0] === "4" ? largo.slice(1) : largo;
+    // El TR va en el renglón de arriba; si ahí no está, probamos uno más arriba.
+    const textos = [tTC];
+    for (const j of [iTC - 1, iTC - 2]) {
+      if (j < 0 || r.TR) continue;
+      const tTR = await franja(ls[j].bbox, "TRDAOPE#0123456789 ", "6", 0.9);
+      textos.unshift(tTR);
+      for (const linea of tTR.split("\n")) {
+        const m = linea.replace(/\s+/g, " ").match(/TR\s*[#EHN]?\s*([0-9OD]{4,6})\b/);
+        if (m) { r.TR = m[1].replace(/[OD]/g, "0"); break; }
+      }
+    }
+    r.texto = textos.join("\n");
+  } finally {
+    await worker.setParameters({ tessedit_char_whitelist: "", tessedit_pageseg_mode: "3" });
+  }
+  return r;
 }
 
 // Completa lo que falte en `a` con lo que encontró `b`.

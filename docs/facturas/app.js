@@ -61,7 +61,7 @@ form.addEventListener("submit", (e) => {
 
 // Marcador: se arma a partir de llenar.js
 let codigoMarcador = "";
-fetch("llenar.js?v=1").then((r) => r.text()).then((src) => {
+fetch("llenar.js?v=2").then((r) => r.text()).then((src) => {
   codigoMarcador = "javascript:" + encodeURIComponent(src.replace(/^\s*\/\*[\s\S]*?\*\/\s*/, ""));
   $("#marcador").href = codigoMarcador;
 });
@@ -167,7 +167,7 @@ $("#btn-leer").addEventListener("click", leerTicket);
 
 async function leerGratis() {
   estado($("#estado"), "Preparando el lector (la primera vez tarda un poco)…");
-  const { leerTicketGratis } = await import("./lector.js?v=8");
+  const { leerTicketGratis } = await import("./lector.js?v=9");
   const url = URL.createObjectURL(fotoOriginal);
   try {
     const datos = await leerTicketGratis(url, (pasada, p) =>
@@ -263,7 +263,18 @@ function mostrar(registro) {
   $("#r-portal-origen").textContent = FUENTES[x.portal_fuente] || "";
 
   // Datos del ticket: siempre visibles y editables (la lectura puede equivocarse).
-  const delTicket = [
+  const extraDe = (et) => {
+    let c = (x.campos_extra || []).find((e) => e.etiqueta === et);
+    if (!c) { c = { etiqueta: et, valor: "" }; (x.campos_extra = x.campos_extra || []).push(c); }
+    return c;
+  };
+  // Walmart (y Bodega Aurrera / Sam's) solo pide Número de Ticket (TC), # Transacción (TR) y el total.
+  const walmart = esWalmart(x);
+  const delTicket = walmart ? [
+    ["Número de ticket (TC)", () => extraDe("TC").valor, (v) => { extraDe("TC").valor = v; }],
+    ["# Transacción (TR)", () => extraDe("TR").valor, (v) => { extraDe("TR").valor = v; }],
+    ["Total", () => x.total, (v) => { x.total = v; }],
+  ] : [
     ["Folio / ticket", () => x.folio, (v) => { x.folio = v; }],
     ["Tienda / sucursal", () => x.tienda, (v) => { x.tienda = v; }],
     ["Fecha (año-mes-día)", () => x.fecha, (v) => { x.fecha = v; }],
@@ -308,11 +319,20 @@ async function copiar(texto, msg) {
 
 function paqueteParaMarcador() {
   const x = actual.datos, d = misDatos();
+  const ex = (et) => ((x.campos_extra || []).find((c) => c.etiqueta === et) || {}).valor || "";
+  const walmart = esWalmart(x);
   return JSON.stringify({
     __factura: 1,
     rfc: d.rfc, razonSocial: d.razonSocial, cp: d.cp, regimen: d.regimen, usoCfdi: d.usoCfdi, email: d.email,
-    folio: x.folio, tienda: x.tienda, fecha: x.fecha, total: x.total, extras: x.campos_extra || [],
+    // En Walmart «Número de Ticket» es el TC y «# Transacción» es el TR.
+    folio: walmart ? ex("TC") : x.folio,
+    transaccion: ex("TR"),
+    tienda: x.tienda, fecha: x.fecha, total: x.total, extras: x.campos_extra || [],
   });
+}
+
+function esWalmart(x) {
+  return /^(Walmart|Bodega Aurrera|Sam's Club)$/i.test(x.proveedor || "") || /walmart/i.test(x.portal_url || "");
 }
 
 function recordarPortal() {

@@ -1,7 +1,6 @@
 // Mis Facturas: foto del ticket → se leen proveedor y datos (gratis en el celular, o con Claude si hay clave)
 // → copia datos → marcador llena el formulario.
 
-import { leerTextoTicket, datosDelTexto } from "./lector.js?v=2";
 
 const SDK_URL = "https://cdn.jsdelivr.net/npm/@anthropic-ai/sdk@0.130.0/+esm";
 const MODELO = "claude-opus-5-5";
@@ -74,9 +73,13 @@ $("#btn-copiar-marcador").addEventListener("click", async () => {
 
 // ---------- Foto ----------
 let fotoBase64 = null;
-$("#input-foto").addEventListener("change", async (e) => {
+const K_CAMARA = "facturas.abriendoCamara";
+async function alElegirFoto(e) {
+  try { sessionStorage.removeItem(K_CAMARA); } catch (x) { /* nada */ }
   const archivo = e.target.files[0];
+  e.target.value = ""; // permite volver a elegir la misma foto
   if (!archivo) return;
+  estado($("#estado"), "Abriendo foto…");
   try {
     fotoBase64 = await reducirImagen(archivo, 1600);
     $("#vista-previa").src = "data:image/jpeg;base64," + fotoBase64;
@@ -85,16 +88,29 @@ $("#input-foto").addEventListener("change", async (e) => {
     $("#foto-texto").textContent = "Tocar para cambiar foto";
     $("#btn-leer").disabled = false;
     $("#resultado").hidden = true;
-    estado($("#estado"), "");
+    estado($("#estado"), "Foto lista. Toca «Leer ticket».", "ok");
   } catch (err) {
-    estado($("#estado"), "No pude abrir esa foto. Intenta con otra.", "error");
+    console.error(err);
+    estado($("#estado"), "No pude abrir esa foto. Intenta con otra o elígela de la galería.", "error");
   }
-});
+}
+$("#input-camara").addEventListener("change", alElegirFoto);
+$("#input-galeria").addEventListener("change", alElegirFoto);
+// Algunos Android cierran el navegador al abrir la cámara y la página vuelve a empezar.
+$("#input-camara").addEventListener("click", () => { try { sessionStorage.setItem(K_CAMARA, "1"); } catch (x) { /* nada */ } });
+try {
+  if (sessionStorage.getItem(K_CAMARA)) {
+    sessionStorage.removeItem(K_CAMARA);
+    estado($("#estado"), "Tu celular cerró la app al abrir la cámara. Toma la foto con tu cámara normal y luego toca «Elegir de galería».", "error");
+  }
+} catch (x) { /* nada */ }
 
 async function reducirImagen(archivo, max) {
   const url = URL.createObjectURL(archivo);
   try {
-    const img = await new Promise((ok, mal) => { const i = new Image(); i.onload = () => ok(i); i.onerror = mal; i.src = url; });
+    let img;
+    try { img = await createImageBitmap(archivo); }
+    catch (x) { img = await new Promise((ok, mal) => { const i = new Image(); i.onload = () => ok(i); i.onerror = mal; i.src = url; }); }
     const escala = Math.min(1, max / Math.max(img.width, img.height));
     const c = document.createElement("canvas");
     c.width = Math.round(img.width * escala); c.height = Math.round(img.height * escala);
@@ -149,6 +165,7 @@ $("#btn-leer").addEventListener("click", leerTicket);
 
 async function leerGratis() {
   estado($("#estado"), "Preparando el lector (la primera vez tarda un poco)…");
+  const { leerTextoTicket, datosDelTexto } = await import("./lector.js?v=3");
   const texto = await leerTextoTicket(fotoBase64, (p) => estado($("#estado"), `Leyendo ticket… ${p}%`));
   if (texto.replace(/\s/g, "").length < 15) throw new Error("No se alcanza a leer el ticket. Toma la foto más de cerca, derecha y con buena luz.");
   return datosDelTexto(texto);
@@ -361,6 +378,10 @@ function pintarHistorial() {
     return li;
   }));
 }
+
+// Cualquier error inesperado se muestra en pantalla (para poder mandar captura).
+window.addEventListener("error", (e) => estado($("#estado"), "Error: " + (e.message || "desconocido"), "error"));
+window.addEventListener("unhandledrejection", (e) => estado($("#estado"), "Error: " + ((e.reason && e.reason.message) || e.reason || "desconocido"), "error"));
 
 // ---------- inicio ----------
 cargarForm();

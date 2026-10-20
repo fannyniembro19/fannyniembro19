@@ -13,7 +13,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="estilos.css?v=2">
+  <link rel="stylesheet" href="estilos.css?v=3">
 </head>
 <body>
   <header class="barra">
@@ -33,14 +33,23 @@
         <button class="btn btn--chico" data-ir="datos">Ir a Mis datos</button>
       </div>
 
-      <label class="foto" id="zona-foto">
-        <input type="file" id="input-foto" accept="image/*" capture="environment" hidden>
-        <img id="vista-previa" alt="" hidden>
+      <div class="foto" id="zona-foto">
+        <img id="vista-previa" alt="Foto del ticket" hidden>
         <span class="foto__texto" id="foto-texto">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3 7.2 5H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-3.2L15 3H9Zm3 5a5 5 0 1 1 0 10 5 5 0 0 1 0-10Zm0 2a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z"/></svg>
-          Tomar foto del ticket
+          Foto del ticket
         </span>
-      </label>
+        <div class="foto__botones">
+          <label class="btn btn--chico" id="btn-camara">
+            <input type="file" id="input-camara" accept="image/*" capture="environment" hidden>
+            Tomar foto
+          </label>
+          <label class="btn btn--chico btn--rosa">
+            <input type="file" id="input-galeria" accept="image/*" hidden>
+            Elegir de galería
+          </label>
+        </div>
+      </div>
 
       <button class="btn btn--grande" id="btn-leer" disabled>Leer ticket</button>
       <p class="estado" id="estado" role="status" aria-live="polite"></p>
@@ -151,6 +160,6 @@
 
   <div class="toast" id="toast" hidden></div>
 
-  <script type="module" src="app.js?v=2"></script>
+  <script type="module" src="app.js?v=3"></script>
 </body>
 </html>

@@ -165,7 +165,7 @@ $("#btn-leer").addEventListener("click", leerTicket);
 
 async function leerGratis() {
   estado($("#estado"), "Preparando el lector (la primera vez tarda un poco)…");
-  const { leerTextoTicket, datosDelTexto } = await import("./lector.js?v=3");
+  const { leerTextoTicket, datosDelTexto } = await import("./lector.js?v=4");
   const texto = await leerTextoTicket(fotoBase64, (p) => estado($("#estado"), `Leyendo ticket… ${p}%`));
   if (texto.replace(/\s/g, "").length < 15) throw new Error("No se alcanza a leer el ticket. Toma la foto más de cerca, derecha y con buena luz.");
   return datosDelTexto(texto);
@@ -245,6 +245,8 @@ function mostrar(registro) {
   const x = registro.datos;
   const d = misDatos();
   $("#r-proveedor").value = x.proveedor || "";
+  $("#r-texto").textContent = x.texto || "";
+  $("#r-texto-caja").hidden = !x.texto;
   $("#r-emisor").textContent = [x.emisor_razon_social, x.emisor_rfc].filter(Boolean).join(" · ");
   $("#r-notas").textContent = x.notas || "";
   $("#r-notas").hidden = !x.notas;

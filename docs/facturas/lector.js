@@ -30,7 +30,7 @@ export async function leerTextoTicket(imagenBase64, alAvanzar) {
       logger: (m) => { if (m.status === "recognizing text" && alAvanzar) alAvanzar(Math.round(m.progress * 100)); },
       errorHandler: () => leerTextoTicket.alFallar(),
     });
-    const { data } = await worker.recognize("data:image/jpeg;base64," + imagenBase64);
+    const { data } = await worker.recognize(await realzar(imagenBase64));
     return data.text || "";
   })();
   try {
@@ -40,11 +40,47 @@ export async function leerTextoTicket(imagenBase64, alAvanzar) {
   }
 }
 
+// Tickets térmicos suelen salir grises y pálidos: pasamos a blanco y negro con más contraste.
+async function realzar(imagenBase64) {
+  try {
+    const img = await new Promise((ok, mal) => { const i = new Image(); i.onload = () => ok(i); i.onerror = mal; i.src = "data:image/jpeg;base64," + imagenBase64; });
+    const c = document.createElement("canvas");
+    c.width = img.width; c.height = img.height;
+    const ctx = c.getContext("2d");
+    ctx.drawImage(img, 0, 0);
+    const px = ctx.getImageData(0, 0, c.width, c.height);
+    const d = px.data, hist = new Uint32Array(256);
+    for (let i = 0; i < d.length; i += 4) {
+      const g = (d[i] * 299 + d[i + 1] * 587 + d[i + 2] * 114) / 1000 | 0;
+      d[i] = g; hist[g]++;
+    }
+    // Estiramos entre el 2 % más oscuro y el 2 % más claro.
+    const total = d.length / 4;
+    let acum = 0, bajo = 0, alto = 255;
+    for (let v = 0; v < 256; v++) { acum += hist[v]; if (acum > total * 0.02) { bajo = v; break; } }
+    acum = 0;
+    for (let v = 255; v >= 0; v--) { acum += hist[v]; if (acum > total * 0.02) { alto = v; break; } }
+    const rango = Math.max(1, alto - bajo);
+    for (let i = 0; i < d.length; i += 4) {
+      const g = Math.max(0, Math.min(255, ((d[i] - bajo) * 255) / rango));
+      d[i] = d[i + 1] = d[i + 2] = g;
+    }
+    ctx.putImageData(px, 0, 0);
+    return c.toDataURL("image/png");
+  } catch (e) {
+    return "data:image/jpeg;base64," + imagenBase64;
+  }
+}
+
 const sinAcentos = (s) => s.normalize("NFD").replace(/[̀-ͯ]/g, "");
 
 export function datosDelTexto(texto) {
   const lineas = texto.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
-  const T = sinAcentos(texto.toUpperCase());
+  // El lector confunde O/0 e I/1 dentro de números: «2O26» → «2026».
+  const T = sinAcentos(texto.toUpperCase())
+    .replace(/(\d)[OQ](?=[\d\s\/.,:-]|$)/gm, "$10").replace(/(\d)[OQ](?=[\d\s\/.,:-]|$)/gm, "$10")
+    .replace(/(^|[\s\/.-])[OQ](?=\d)/gm, "$10")
+    .replace(/(\d)[IL|](?=\d)/g, "$11");
   const LT = lineas.map((l) => sinAcentos(l.toUpperCase()));
 
   // RFC del emisor (3-4 letras, 6 dígitos de fecha, 3 de homoclave)
@@ -55,8 +91,8 @@ export function datosDelTexto(texto) {
   const MESES = { ENE: 1, FEB: 2, MAR: 3, ABR: 4, MAY: 5, JUN: 6, JUL: 7, AGO: 8, SEP: 9, SET: 9, OCT: 10, NOV: 11, DIC: 12 };
   const dos = (n) => String(n).padStart(2, "0");
   let m;
-  if ((m = T.match(/\b(20\d{2})[\/.-](\d{1,2})[\/.-](\d{1,2})\b/))) fecha = `${m[1]}-${dos(m[2])}-${dos(m[3])}`;
-  else if ((m = T.match(/\b(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})\b/))) {
+  if ((m = T.match(/\b(20\d{2})\s?[\/.-]\s?(\d{1,2})\s?[\/.-]\s?(\d{1,2})\b/))) fecha = `${m[1]}-${dos(m[2])}-${dos(m[3])}`;
+  else if ((m = T.match(/\b(\d{1,2})\s?[\/.-]\s?(\d{1,2})\s?[\/.-]\s?(\d{4}|\d{2})\b/))) {
     const y = m[3].length === 2 ? "20" + m[3] : m[3];
     if (+m[2] <= 12) fecha = `${y}-${dos(m[2])}-${dos(m[1])}`;
   } else if ((m = T.match(/\b(\d{1,2})[\/ .-]?(ENE|FEB|MAR|ABR|MAY|JUN|JUL|AGO|SEP|SET|OCT|NOV|DIC)[A-Z]*[\/ .-]?(\d{2,4})\b/))) {
@@ -75,12 +111,14 @@ export function datosDelTexto(texto) {
   }
 
   const valorTras = (re) => { const x = T.match(re); return x ? x[1] : ""; };
-  const folio = valorTras(/\b(?:FOLIO|TICKET|TRANSACCION|TRANS|TRX|NO\.? ?(?:DE )?VENTA|OPERACION|NOTA)\b\.?\s*(?:NO\.?|NUM\.?|#)?\s*[:#]?\s*([A-Z0-9][A-Z0-9-]{2,})/);
-  const tienda = valorTras(/\b(?:TIENDA|SUCURSAL|SUC|ESTACION|EST)\b\.?\s*(?:NO\.?|NUM\.?|#)?\s*[:#]?\s*([A-Z0-9][A-Z0-9-]*)/);
+  // Los valores siempre llevan al menos un número (así no tomamos palabras como «ATENDIMOS»).
+  const COD = "((?=[A-Z0-9-]*\\d)[A-Z0-9][A-Z0-9-]*)";
+  const folio = valorTras(new RegExp("\\b(?:FOLIO|F0LIO|TICKET|TIKET|TKT|TRANSACCION|TRANSAC|TRANS|TRX|NO\\.? ?(?:DE )?(?:VENTA|TICKET|OPERACION)|OPERACION|NOTA|ORDEN|CUENTA|CONSECUTIVO)\\b\\.?\\s*(?:NO\\.?|NUM\\.?|#)?\\s*[:#]?\\s*" + COD));
+  const tienda = valorTras(new RegExp("\\b(?:TIENDA|SUCURSAL|SUC|ESTACION|EST|TDA|UNIDAD|ESTABLECIMIENTO)\\b\\.?\\s*(?:NO\\.?|NUM\\.?|#)?\\s*[:#]?\\s*" + COD));
 
   // Códigos especiales que piden algunos portales.
   const campos_extra = [];
-  const reExtra = /\b(TR|TC|TE|TDA|CAJA|WEB ?ID|ID WEB|REFERENCIA|REF|CODIGO DE FACTURACION|CODIGO FACTURACION|ID DE FACTURACION|ID FACTURACION|AUTORIZACION|AUT)\b\.?\s*[:#]?\s*([A-Z0-9][A-Z0-9-]*)/g;
+  const reExtra = /\b(TR|TC|TE|TDA|CAJA|WEB ?ID|ID WEB|REFERENCIA|REF|CODIGO DE FACTURACION|CODIGO FACTURACION|ID DE FACTURACION|ID FACTURACION|AUTORIZACION|AUT)\b\.?\s*[:#]?\s*((?=[A-Z0-9-]*\d)[A-Z0-9][A-Z0-9-]*)/g;
   for (const x of T.matchAll(reExtra)) {
     if (!campos_extra.some((c) => c.etiqueta === x[1])) campos_extra.push({ etiqueta: x[1], valor: x[2] });
   }
@@ -116,6 +154,7 @@ export function datosDelTexto(texto) {
     fecha, total, folio, tienda, campos_extra,
     portal_url,
     portal_fuente: portal_url ? "ticket" : "no_encontrado",
+    texto: texto.trim(),
     notas: "Leído gratis en tu celular: revisa que los datos estén bien y corrígelos si hace falta.",
   };
 }

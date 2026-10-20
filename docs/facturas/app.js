@@ -167,7 +167,7 @@ $("#btn-leer").addEventListener("click", leerTicket);
 
 async function leerGratis() {
   estado($("#estado"), "Preparando el lector (la primera vez tarda un poco)…");
-  const { leerTicketGratis } = await import("./lector.js?v=7");
+  const { leerTicketGratis } = await import("./lector.js?v=8");
   const url = URL.createObjectURL(fotoOriginal);
   try {
     const datos = await leerTicketGratis(url, (pasada, p) =>
@@ -395,5 +395,12 @@ window.addEventListener("error", (e) => estado($("#estado"), "Error: " + (e.mess
 window.addEventListener("unhandledrejection", (e) => estado($("#estado"), "Error: " + ((e.reason && e.reason.message) || e.reason || "desconocido"), "error"));
 
 // ---------- inicio ----------
+// La primera versión guardaba una página de Walmart que ya no sirve: la olvidamos.
+(() => {
+  const p = guardado.leer(K_PORTALES, {});
+  let cambio = false;
+  for (const k of Object.keys(p)) if (/walmartmexico\.com\.mx/i.test(p[k].url || "")) { delete p[k]; cambio = true; }
+  if (cambio) guardado.escribir(K_PORTALES, p);
+})();
 cargarForm();
 revisarConfig();

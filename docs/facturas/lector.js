@@ -16,7 +16,7 @@ const MARCAS = [
   "CINEPOLIS", "CINEMEX", "TELCEL", "TELMEX", "AT&T", "CFE", "AUTOZONE", "TRUPER", "DEL SOL", "WOOLWORTH",
 ];
 
-const WALMART = "https://facturacion.walmartmexico.com.mx/";
+const WALMART = "https://facturacion-clientes.walmart.com/ticket";
 
 // Lee el ticket completo: una pasada en gris y, si faltan datos clave, otra en blanco y negro.
 // `imagen` es una dirección de imagen (blob: o data:), de preferencia la foto en tamaño original.
@@ -232,25 +232,27 @@ export function datosDelTexto(texto) {
 
   // Códigos especiales que piden algunos portales.
   const campos_extra = [];
-  const reExtra = /\b(TR|TC|TE|TDA|CAJA|WEB ?ID|ID WEB|REFERENCIA|REF|CODIGO DE FACTURACION|CODIGO FACTURACION|ID DE FACTURACION|ID FACTURACION|AUTORIZACION|AUT)\b\.?\s*[:#]?\s*((?=[A-Z0-9-]*\d)[A-Z0-9][A-Z0-9-]*)/g;
+  const reExtra = /\b(TR|TC|TE|TDA|CAJA|WEB ?ID|ID WEB|REFERENCIA|REF|CODIGO DE FACTURACION|CODIGO FACTURACION|ID DE FACTURACION|ID FACTURACION)\b\.?\s*[:#]?\s*((?=[A-Z0-9-]*\d)[A-Z0-9][A-Z0-9-]*)/g;
   for (const x of T.matchAll(reExtra)) {
     if (!campos_extra.some((c) => c.etiqueta === x[1])) campos_extra.push({ etiqueta: x[1], valor: x[2] });
   }
 
   // Códigos con «#» (Walmart, Bodega Aurrera, Sam's): el lector suele leer «#» como H, N, M o Y,
   // y confunde letras con números (O→0, S→5...).
-  const aNumero = (v) => v.replace(/[ODQ]/g, "0").replace(/[IL|]/g, "1").replace(/Z/g, "2").replace(/S/g, "5").replace(/G/g, "6").replace(/B/g, "8").replace(/Y/g, "9");
+  const aNumero = (v) => v.replace(/[ODQ]/g, "0").replace(/[IL|]/g, "1").replace(/Z/g, "2").replace(/S/g, "5").replace(/G/g, "6").replace(/B/g, "8").replace(/[YJ]/g, "9");
   const gato = "\\s*[#HNMY?]?\\s*";
   const codigos = [
-    ["TC", new RegExp("\\b[T1I][CG]" + gato + "(\\d{15,26})")],
-    ["TR", new RegExp("\\bT[RK]" + gato + "([0-9ODQSILY]{4,6})\\b")],
+    ["TC", new RegExp("\\b[T1I][CG](\\s*[#HNMY?]?\\s*)(\\d{15,26})")],
+    ["TR", new RegExp("\\b[T1I][RK]" + gato + "([0-9ODQSILYJ]{4,6})\\b")],
     ["TDA", new RegExp("\\b[T1I]?[D0O]?A[#HNMY]\\s*([0-9ODQSIL]{3,5})\\b")],
     ["TE", new RegExp("\\bT[EF][#HNMY]\\s*([0-9ODQSIL]{2,4})\\b")],
   ];
   for (const [etiqueta, re] of codigos) {
     const x = T.match(re);
     if (!x) continue;
-    const valor = aNumero(x[1]);
+    let valor = aNumero(x[x.length - 1]);
+    // El «#» de «TC#» a veces se lee como un 4 pegado al número: «TC4214…» en vez de «TC#214…».
+    if (etiqueta === "TC" && !/[#HNMY?]/.test(x[1]) && valor.length >= 22 && valor[0] === "4") valor = valor.slice(1);
     const ya = campos_extra.find((c) => c.etiqueta === etiqueta);
     if (ya) ya.valor = valor; else campos_extra.push({ etiqueta, valor });
   }
@@ -259,6 +261,16 @@ export function datosDelTexto(texto) {
     const largo = LT.map((l) => l.replace(/[^0-9A-Z]/g, "")).map((l) => (l.match(/\d{18,26}/) || [])[0]).find(Boolean);
     if (largo && /WALMART|WAL MART|AURRERA|SAM'?S/.test(T)) campos_extra.push({ etiqueta: "TC", valor: largo });
   }
+  // TR de Walmart: es el último código del renglón «TDA#… OP#… TE#… TR#…».
+  if (!campos_extra.some((c) => c.etiqueta === "TR") && /WALMART|WAL MART|AURRERA|SAM'?S/.test(T)) {
+    const renglon = LT.find((l) => [/\b[O0]P\W?[#HNMY]?/, /\bT[EF]\W?[#HNMY]/, /D?A[#HNMY]\s*\d/, /OP.?\d{3}/].filter((r) => r.test(l)).length >= 2);
+    const ult = renglon && renglon.trim().split(/\s+/).pop();
+    const m = ult && ult.match(/([0-9ODQSILYJ]{5})$/);
+    if (m) campos_extra.push({ etiqueta: "TR", valor: aNumero(m[1]) });
+  }
+  // Primero los que pide Walmart.
+  const orden = ["TC", "TR"];
+  campos_extra.sort((a, b) => (orden.indexOf(a.etiqueta) + 1 || 9) - (orden.indexOf(b.etiqueta) + 1 || 9));
   const tdaWalmart = campos_extra.find((c) => c.etiqueta === "TDA");
 
   // Página de facturación impresa en el ticket (preferimos la que esté cerca de «factur»).

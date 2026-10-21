@@ -343,7 +343,7 @@ function mostrar(registro) {
       li.querySelector(".c-nombre").after(caja);
     }
     li.querySelector(".c-valor").append(valorEl);
-    li.querySelector("button").addEventListener("click", () => copiar(leer(), `${nombre} copiado`));
+    li.querySelector("button").addEventListener("click", () => copiar(leer(), `${nombre} copiado. Cambia a Chrome y pégalo.`));
     return li;
   };
   $("#r-campos").replaceChildren(
@@ -455,8 +455,15 @@ $("#btn-copiar-teclado").addEventListener("click", async () => {
 $("#btn-facturar").addEventListener("click", () => {
   const url = $("#r-portal").value.trim();
   if (!/^https?:\/\//i.test(url)) { toast("Falta la dirección de la página de facturación."); $("#r-portal").focus(); return; }
-  window.open(url, "_blank", "noopener");
   recordarPortal();
+  // En Android, desde la app instalada la página se abre en una ventana interna que se cierra
+  // al volver a la app. La abrimos en Chrome normal: así se puede ir y venir para pegar datos.
+  if (/Android/i.test(navigator.userAgent)) {
+    const u = new URL(url);
+    location.href = `intent://${u.host}${u.pathname}${u.search}#Intent;scheme=${u.protocol.replace(":", "")};package=com.android.chrome;S.browser_fallback_url=${encodeURIComponent(url)};end`;
+  } else {
+    window.open(url, "_blank", "noopener");
+  }
 });
 
 // Para quien usa el marcador «Llenar factura» en Chrome: copia todo junto en el formato que entiende.
@@ -506,7 +513,7 @@ window.addEventListener("unhandledrejection", (e) => estado($("#estado"), "Error
 
 // ---------- versión ----------
 // Si ya hay una versión más nueva publicada, avisamos para no quedarnos con la vieja guardada.
-const VERSION = 13;
+const VERSION = 14;
 $("#version").textContent = "Versión " + VERSION;
 fetch("version.json?t=" + Date.now(), { cache: "no-store" })
   .then((r) => r.json())

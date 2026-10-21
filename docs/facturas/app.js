@@ -294,6 +294,7 @@ function mostrar(registro) {
   const d = misDatos();
   $("#r-proveedor").value = x.proveedor || "";
   $("#lista-teclado").textContent = "";
+  $("#lista-paso2").textContent = "";
   $("#r-texto").textContent = x.texto || "";
   $("#r-texto-caja").hidden = !x.texto;
   $("#r-emisor").textContent = [x.emisor_razon_social, x.emisor_rfc].filter(Boolean).join(" · ");
@@ -452,6 +453,29 @@ $("#btn-copiar-teclado").addEventListener("click", async () => {
   }
 });
 
+// Segunda pantalla (datos fiscales): Walmart y otros piden razón social y correo cada vez.
+$("#btn-copiar-paso2").addEventListener("click", async () => {
+  const d = misDatos();
+  const lista = [["Razón social", d.razonSocial], ["Correo", d.email]].filter(([, v]) => v);
+  const btn = $("#btn-copiar-paso2");
+  btn.disabled = true;
+  try {
+    for (let i = lista.length - 1; i >= 0; i--) {
+      btn.textContent = `Copiando ${lista[i][0]}…`;
+      await navigator.clipboard.writeText(lista[i][1]);
+      await espera(900);
+    }
+    $("#lista-paso2").innerHTML = "Copiados: " + lista.map(([n, v]) => `<br>• <strong>${n}:</strong> ${v.replace(/[<>&]/g, "")}`).join("") +
+      `<br>Régimen fiscal: elige <strong>${d.regimen || "el tuyo"}</strong> · Uso de CFDI: <strong>${d.usoCfdi || "G03"}</strong>.`;
+    toast("Listo. Regresa a la página y pégalos desde el portapapeles del teclado.");
+  } catch (e) {
+    toast("No pude copiar. Usa los botones Copiar de cada dato.");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Copiar datos de la 2.ª pantalla (razón social y correo)";
+  }
+});
+
 $("#btn-facturar").addEventListener("click", () => {
   const url = $("#r-portal").value.trim();
   if (!/^https?:\/\//i.test(url)) { toast("Falta la dirección de la página de facturación."); $("#r-portal").focus(); return; }
@@ -513,7 +537,7 @@ window.addEventListener("unhandledrejection", (e) => estado($("#estado"), "Error
 
 // ---------- versión ----------
 // Si ya hay una versión más nueva publicada, avisamos para no quedarnos con la vieja guardada.
-const VERSION = 14;
+const VERSION = 15;
 $("#version").textContent = "Versión " + VERSION;
 fetch("version.json?t=" + Date.now(), { cache: "no-store" })
   .then((r) => r.json())

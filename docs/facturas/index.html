@@ -33,6 +33,12 @@
         <button class="btn btn--chico" id="btn-actualizar">Actualizar</button>
       </div>
 
+      <div class="aviso" id="aviso-rfc" hidden>
+        <span>Tu RFC (<strong id="rfc-malo"></strong>) parece tener un error: no pasa la comprobación del SAT.
+          Revísalo con tu Constancia de Situación Fiscal.</span>
+        <button class="btn btn--chico" data-ir="datos">Corregir en Mis datos</button>
+      </div>
+
       <div class="aviso" id="aviso-config" hidden>
         Antes de empezar llena <strong>Mis datos</strong> (tu RFC, nombre, código postal y email).
         <button class="btn btn--chico" data-ir="datos">Ir a Mis datos</button>
@@ -188,6 +194,6 @@
 
   <div class="toast" id="toast" hidden></div>
 
-  <script type="module" src="app.js?v=15"></script>
+  <script type="module" src="app.js?v=16"></script>
 </body>
 </html>

@@ -73,8 +73,9 @@ $("#btn-copiar-marcador").addEventListener("click", async () => {
 
 // ---------- Foto ----------
 let fotoBase64 = null;
-let fotoOriginal = null; // archivo tal cual, para que el lector gratis vea todo el detalle
+let fotoTrabajo = null; // copia de ~2400 px: suficiente detalle para leer sin agotar la memoria del celular
 const K_CAMARA = "facturas.abriendoCamara";
+const K_LEYENDO = "facturas.leyendo";
 async function alElegirFoto(e) {
   try { sessionStorage.removeItem(K_CAMARA); } catch (x) { /* nada */ }
   const archivo = e.target.files[0];
@@ -82,8 +83,10 @@ async function alElegirFoto(e) {
   if (!archivo) return;
   estado($("#estado"), "Abriendo foto…");
   try {
-    fotoBase64 = await reducirImagen(archivo, 2000);
-    fotoOriginal = archivo;
+    // Las cámaras de hoy sacan fotos de 12 a 50 megapixeles: trabajarlas completas
+    // agota la memoria y Android cierra la app. Hacemos una copia más ligera una sola vez.
+    fotoTrabajo = await aJPEG(archivo, 2400);
+    fotoBase64 = await aBase64(await aJPEG(fotoTrabajo, 1600));
     $("#vista-previa").src = "data:image/jpeg;base64," + fotoBase64;
     $("#vista-previa").hidden = false;
     $("#zona-foto").classList.add("con-foto");
@@ -105,20 +108,44 @@ try {
     sessionStorage.removeItem(K_CAMARA);
     estado($("#estado"), "Tu celular cerró la app al abrir la cámara. Toma la foto con tu cámara normal y luego toca «Elegir de galería».", "error");
   }
+  if (sessionStorage.getItem(K_LEYENDO)) {
+    sessionStorage.removeItem(K_LEYENDO);
+    estado($("#estado"), "Tu celular se quedó sin memoria mientras leía el ticket. Cierra otras apps, vuelve a elegir la foto e intenta otra vez.", "error");
+  }
 } catch (x) { /* nada */ }
 
-async function reducirImagen(archivo, max) {
-  const url = URL.createObjectURL(archivo);
+// Devuelve la foto como JPEG con el lado mayor de `max` px como mucho.
+async function aJPEG(fuente, max) {
+  let img;
   try {
-    let img;
-    try { img = await createImageBitmap(archivo); }
-    catch (x) { img = await new Promise((ok, mal) => { const i = new Image(); i.onload = () => ok(i); i.onerror = mal; i.src = url; }); }
-    const escala = Math.min(1, max / Math.max(img.width, img.height));
-    const c = document.createElement("canvas");
-    c.width = Math.round(img.width * escala); c.height = Math.round(img.height * escala);
-    c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
-    return c.toDataURL("image/jpeg", 0.85).split(",")[1];
-  } finally { URL.revokeObjectURL(url); }
+    // Pedirle al navegador la imagen ya reducida evita cargar la foto completa en memoria.
+    const chica = await createImageBitmap(fuente, { resizeWidth: max, resizeQuality: "high" });
+    if (chica.height > max * 1.6) { // foto vertical: la reducimos por lo alto
+      const w = Math.round(chica.width * (max * 1.6) / chica.height); chica.close();
+      img = await createImageBitmap(fuente, { resizeWidth: w, resizeQuality: "high" });
+    } else img = chica;
+  } catch (x) {
+    const url = URL.createObjectURL(fuente);
+    try { img = await new Promise((ok, mal) => { const i = new Image(); i.onload = () => ok(i); i.onerror = mal; i.src = url; }); }
+    finally { setTimeout(() => URL.revokeObjectURL(url), 1000); }
+  }
+  const escala = Math.min(1, (max * 1.6) / Math.max(img.width, img.height));
+  const c = document.createElement("canvas");
+  c.width = Math.round(img.width * escala); c.height = Math.round(img.height * escala);
+  c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+  if (img.close) img.close();
+  const blob = await new Promise((ok) => c.toBlob(ok, "image/jpeg", 0.9));
+  c.width = c.height = 0; // libera la memoria del lienzo
+  return blob;
+}
+
+function aBase64(blob) {
+  return new Promise((ok, mal) => {
+    const r = new FileReader();
+    r.onload = () => ok(String(r.result).split(",")[1]);
+    r.onerror = mal;
+    r.readAsDataURL(blob);
+  });
 }
 
 // ---------- Leer ticket con Claude ----------
@@ -147,6 +174,7 @@ async function leerTicket() {
   const d = misDatos();
   const btn = $("#btn-leer");
   btn.disabled = true;
+  try { sessionStorage.setItem(K_LEYENDO, "1"); } catch (x) { /* nada */ }
   try {
     const datos = d.apiKey ? await leerConClaude(d.apiKey) : await leerGratis();
     terminarLectura(datos);
@@ -161,20 +189,21 @@ async function leerTicket() {
     estado($("#estado"), msg, "error");
   } finally {
     btn.disabled = false;
+    try { sessionStorage.removeItem(K_LEYENDO); } catch (x) { /* nada */ }
   }
 }
 $("#btn-leer").addEventListener("click", leerTicket);
 
 async function leerGratis() {
   estado($("#estado"), "Preparando el lector (la primera vez tarda un poco)…");
-  const { leerTicketGratis } = await import("./lector.js?v=10");
-  const url = URL.createObjectURL(fotoOriginal);
+  const { leerTicketGratis } = await import("./lector.js?v=12");
+  const url = URL.createObjectURL(fotoTrabajo);
   try {
     const datos = await leerTicketGratis(url, (pasada, p) =>
       estado($("#estado"), pasada ? `Revisando otra vez para encontrar lo que faltó… ${p}%` : `Leyendo ticket… ${p}%`));
     estado($("#estado"), "Buscando código de barras o QR…");
-    const { leerCodigos, aplicarCodigos } = await import("./codigos.js?v=1");
-    aplicarCodigos(datos, await leerCodigos(fotoOriginal));
+    const { leerCodigos, aplicarCodigos } = await import("./codigos.js?v=2");
+    aplicarCodigos(datos, await leerCodigos(fotoTrabajo));
     if (datos.texto.replace(/\s/g, "").length < 15) throw new Error("No se alcanza a leer el ticket. Toma la foto más de cerca, derecha y con buena luz.");
     return datos;
   } finally {
@@ -221,12 +250,18 @@ async function leerConClaude(apiKey) {
   return datos;
 }
 
+// Recortes de la foto (TC/TR) para comparar: solo en memoria, no se guardan en el historial.
+const recortesDe = {};
+
 function terminarLectura(datos) {
+  const recortes = datos.recortes;
+  delete datos.recortes;
   // Si ya tenemos un portal guardado para este proveedor, ese manda.
   const previo = guardado.leer(K_PORTALES, {})[clave(datos.proveedor)];
   if (previo && previo.url) { datos.portal_url = previo.url; datos.portal_fuente = "conocido"; }
 
   const registro = { id: Date.now(), creado: new Date().toISOString(), datos, facturado: false };
+  if (recortes) recortesDe[registro.id] = recortes;
   const hist = guardado.leer(K_HISTORIAL, []);
   hist.unshift(registro);
   guardado.escribir(K_HISTORIAL, hist.slice(0, 200));
@@ -275,8 +310,8 @@ function mostrar(registro) {
   // Walmart (y Bodega Aurrera / Sam's) solo pide Número de Ticket (TC), # Transacción (TR) y el total.
   const walmart = esWalmart(x);
   const delTicket = walmart ? [
-    ["Número de ticket (TC)", () => extraDe("TC").valor, (v) => { extraDe("TC").valor = v; }],
-    ["# Transacción (TR)", () => extraDe("TR").valor, (v) => { extraDe("TR").valor = v; }],
+    ["Número de ticket (TC)", () => extraDe("TC").valor, (v) => { extraDe("TC").valor = v; }, "TC"],
+    ["# Transacción (TR)", () => extraDe("TR").valor, (v) => { extraDe("TR").valor = v; }, "TR"],
     ["Total", () => x.total, (v) => { x.total = v; }],
   ] : [
     ["Folio / ticket", () => x.folio, (v) => { x.folio = v; }],
@@ -290,22 +325,33 @@ function mostrar(registro) {
     ["Régimen fiscal", d.regimen], ["Uso de CFDI", d.usoCfdi], ["Email", d.email],
   ].filter(([, v]) => v);
 
-  const fila = (nombre, valorEl, leer) => {
+  const recortes = recortesDe[registro.id] || {};
+  const fila = (nombre, valorEl, leer, recorte) => {
     const li = document.createElement("li");
     li.innerHTML = `<span class="c-texto"><span class="c-nombre"></span><span class="c-valor"></span></span>
       <button class="btn btn--copiar" type="button">Copiar</button>`;
     li.querySelector(".c-nombre").textContent = nombre;
+    if (recorte) {
+      // Pedacito de la foto, grande y desplazable de lado, para comparar número por número.
+      const caja = document.createElement("div");
+      caja.className = "c-recorte";
+      const img = document.createElement("img");
+      img.src = recorte; img.alt = "Así viene en tu ticket";
+      if (/TR/.test(nombre)) img.onload = () => { caja.scrollLeft = caja.scrollWidth; }; // el TR va al final del renglón
+      caja.append(img);
+      li.querySelector(".c-nombre").after(caja);
+    }
     li.querySelector(".c-valor").append(valorEl);
     li.querySelector("button").addEventListener("click", () => copiar(leer(), `${nombre} copiado`));
     return li;
   };
   $("#r-campos").replaceChildren(
-    ...delTicket.map(([nombre, leer, poner]) => {
+    ...delTicket.map(([nombre, leer, poner, clave]) => {
       const inp = document.createElement("input");
       inp.value = leer() || "";
       inp.placeholder = "no se leyó; escríbelo";
       inp.addEventListener("change", () => { poner(inp.value.trim()); actualizarHistorial(registro); });
-      return fila(nombre, inp, () => inp.value);
+      return fila(nombre, inp, () => inp.value, clave && recortes[clave]);
     }),
     ...tuyos.map(([nombre, valor]) => fila(nombre, document.createTextNode(valor), () => valor)),
   );
@@ -420,7 +466,7 @@ window.addEventListener("unhandledrejection", (e) => estado($("#estado"), "Error
 
 // ---------- versión ----------
 // Si ya hay una versión más nueva publicada, avisamos para no quedarnos con la vieja guardada.
-const VERSION = 10;
+const VERSION = 12;
 $("#version").textContent = "Versión " + VERSION;
 fetch("version.json?t=" + Date.now(), { cache: "no-store" })
   .then((r) => r.json())

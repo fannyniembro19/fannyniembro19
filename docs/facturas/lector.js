@@ -39,6 +39,15 @@ export async function leerTicketGratis(imagen, alAvanzar) {
     });
     let datos = null, primera = null;
     const textos = [];
+    // Si el papel está acostado probamos girándolo a un lado y, si no se entiende, al otro.
+    const { acostado } = await realzar(imagen, { soloOrientacion: true });
+    let giro = 0;
+    if (acostado) {
+      const conf = async (g) => (await worker.recognize(await realzar(imagen, { giro: g }))).data.confidence;
+      const c90 = await conf(90);
+      giro = c90 >= 50 || c90 >= (await conf(270)) ? 90 : 270;
+    }
+    pasadas.forEach((p) => { p.giro = giro; });
     for (; pasada < pasadas.length; pasada++) {
       const prep = await realzar(imagen, pasadas[pasada]);
       const { data } = await worker.recognize(prep, {}, { text: true, blocks: true });
@@ -52,9 +61,10 @@ export async function leerTicketGratis(imagen, alAvanzar) {
     if (esWalmart(datos)) {
       pasada = 2;
       try {
-        const r = await leerCodigosWalmart(worker, primera.prep, renglones(primera.data));
-        if (r.TC && !extra(datos, "TC")) ponerExtra(datos, "TC", r.TC);
-        if (r.TR && r.TR.length >= extra(datos, "TR").length) ponerExtra(datos, "TR", r.TR);
+        const r = await leerCodigosWalmart(worker, primera.prep, renglones(primera.data), { TC: extra(datos, "TC"), TR: extra(datos, "TR") });
+        if (r.TC) ponerExtra(datos, "TC", r.TC);
+        if (r.TR) ponerExtra(datos, "TR", r.TR);
+        datos.recortes = { TC: r.imgTC, TR: r.imgTR };
         if (r.texto) textos.push(r.texto);
       } catch (e) { console.warn("Lectura fina de Walmart falló", e); }
     }
@@ -86,51 +96,98 @@ function renglones(data) {
   return ls.sort((a, b) => a.bbox.y0 - b.bbox.y0);
 }
 
-async function leerCodigosWalmart(worker, prepUrl, ls) {
+async function leerCodigosWalmart(worker, prepUrl, ls, general = {}) {
   const img = await new Promise((ok, mal) => { const i = new Image(); i.onload = () => ok(i); i.onerror = mal; i.src = prepUrl; });
   const digitos = (l) => (l.text.replace(/\s/g, "").match(/\d+/g) || []).reduce((m, x) => Math.max(m, x.length), 0);
-  // El TC es el renglón con el número más largo (18 o más dígitos seguidos).
+  // El TC es el renglón con el número más largo (15 o más dígitos seguidos); el TR va justo arriba.
   let iTC = -1;
   ls.forEach((l, i) => { if (digitos(l) >= 15 && (iTC < 0 || digitos(l) > digitos(ls[iTC]))) iTC = i; });
   if (iTC < 0) return {};
+  const iTR = iTC - 1;
 
   // Franja un poco más alta que el renglón: los tickets casi siempre salen algo inclinados.
-  const franja = async (bbox, lista, psm = "7", holgura = 0.4) => {
+  const banda = (bbox, holgura, esc = 1) => {
     const alto = Math.max(8, bbox.y1 - bbox.y0), pad = Math.round(alto * holgura);
     const y0 = Math.max(0, bbox.y0 - pad), y1 = Math.min(img.height, bbox.y1 + pad);
-    const esc = Math.max(1, Math.min(4, 70 / alto));
     const c = document.createElement("canvas");
     c.width = Math.round(img.width * esc); c.height = Math.round((y1 - y0) * esc);
     const ctx = c.getContext("2d");
     ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, c.width, c.height);
     ctx.imageSmoothingQuality = "high";
     ctx.drawImage(img, 0, y0, img.width, y1 - y0, 0, 0, c.width, c.height);
+    return c;
+  };
+  const leer = async (bbox, lista, psm, holgura, altoMeta = 70) => {
+    const alto = Math.max(8, bbox.y1 - bbox.y0);
     await worker.setParameters({ tessedit_char_whitelist: lista, tessedit_pageseg_mode: psm });
-    const { data } = await worker.recognize(c);
+    const { data } = await worker.recognize(banda(bbox, holgura, Math.max(1, Math.min(5, altoMeta / alto))));
     return (data.text || "").trim();
   };
-
-  const r = {};
-  try {
-    const tTC = await franja(ls[iTC].bbox, "TC#0123456789 ");
-    const sinEsp = tTC.replace(/\s/g, "");
-    const largo = (sinEsp.match(/\d{15,26}/g) || []).sort((a, b) => b.length - a.length)[0];
-    if (largo) r.TC = /^T?C\d/.test(sinEsp) && largo.length >= 22 && largo[0] === "4" ? largo.slice(1) : largo;
-    // El TR va en el renglón de arriba; si ahí no está, probamos uno más arriba.
-    const textos = [tTC];
-    for (const j of [iTC - 1, iTC - 2]) {
-      if (j < 0 || r.TR) continue;
-      const tTR = await franja(ls[j].bbox, "TRDAOPE#0123456789 ", "6", 0.9);
-      textos.unshift(tTR);
-      for (const linea of tTR.split("\n")) {
-        const m = linea.replace(/\s+/g, " ").match(/TR\s*[#EHN]?\s*([0-9OD]{4,6})\b/);
-        if (m) { r.TR = m[1].replace(/[OD]/g, "0"); break; }
-      }
+  // Pedacito de la foto para que la persona compare con lo leído.
+  const recorte = (bbox) => {
+    const c = banda(bbox, 0.6, Math.min(1, 900 / img.width));
+    const url = c.toDataURL("image/jpeg", 0.8);
+    c.width = c.height = 0;
+    return url;
+  };
+  // Cada lectura suele fallar en un dígito distinto: votamos posición por posición.
+  // Si una posición empata, decide la lectura que más coincide con las demás.
+  // `largoUsual`: cuántos dígitos trae normalmente (TC 21, TR 5); si alguna lectura lo tiene, se usa ese.
+  const votar = (vals, largoUsual) => {
+    vals = vals.filter(Boolean);
+    if (vals.length < 2) return vals[0] || "";
+    const largos = new Map();
+    vals.forEach((v) => largos.set(v.length, (largos.get(v.length) || 0) + 1));
+    const L = largos.has(largoUsual) ? largoUsual : [...largos].sort((a, b) => b[1] - a[1])[0][0];
+    const iguales = vals.filter((v) => v.length === L);
+    if (iguales.length < 2) return iguales[0];
+    const acuerdo = (v) => iguales.reduce((n, w) => n + [...v].filter((ch, i) => ch === w[i]).length, 0);
+    const guia = iguales.reduce((a, b) => (acuerdo(b) > acuerdo(a) ? b : a));
+    let res = "";
+    for (let i = 0; i < L; i++) {
+      const cuenta = {};
+      iguales.forEach((v) => { cuenta[v[i]] = (cuenta[v[i]] || 0) + 1; });
+      const max = Math.max(...Object.values(cuenta));
+      const ganadores = Object.keys(cuenta).filter((k) => cuenta[k] === max);
+      res += ganadores.length === 1 ? ganadores[0] : guia[i];
     }
-    r.texto = textos.join("\n");
+    return res;
+  };
+  const tcDe = (t) => {
+    const largo = (t.replace(/\s/g, "").match(/\d{15,30}/g) || []).sort((a, b) => b.length - a.length)[0] || "";
+    // «TC#» a veces se lee como números pegados al inicio (4, 64, 164…): el TC de Walmart trae 21 dígitos.
+    return largo.length > 21 ? largo.slice(-21) : largo;
+  };
+  const trDe = (t) => {
+    for (const linea of t.split("\n")) {
+      const m = linea.replace(/\s+/g, " ").match(/T?R\s*[#EHN]?\s*([0-9OD]{4,6})\s*$/) || linea.replace(/\s+/g, " ").match(/TR\s*[#EHN]?\s*([0-9OD]{4,6})\b/);
+      if (m) return m[1].replace(/[OD]/g, "0");
+    }
+    return "";
+  };
+
+  const r = { textos: [] };
+  try {
+    const bTC = ls[iTC].bbox;
+    const tc1 = await leer(bTC, "TC#0123456789 ", "7", 0.4);
+    const tc2 = await leer(bTC, "0123456789", "7", 0.7);
+    const tc3 = await leer(bTC, "0123456789", "7", 0.5, 110);
+    r.textos.push(tc1, tc2, tc3);
+    r.TC = votar([tcDe(general.TC || ""), tcDe(tc1), tcDe(tc2), tcDe(tc3)], 21);
+    r.imgTC = recorte(bTC);
+    if (iTR >= 0) {
+      const bTR = ls[iTR].bbox;
+      const tr1 = await leer(bTR, "TRDAOPE#0123456789 ", "6", 0.9);
+      const tr2 = await leer(bTR, "TRDAOPE#0123456789 ", "7", 0.5);
+      const tr3 = await leer(bTR, "TRDAOPE#0123456789 ", "6", 0.9, 110);
+      r.textos.unshift(tr1, tr2, tr3);
+      r.TR = votar([trDe(tr1), trDe(tr3), trDe(tr2), general.TR], 5);
+      r.imgTR = recorte(bTR);
+    }
   } finally {
     await worker.setParameters({ tessedit_char_whitelist: "", tessedit_pageseg_mode: "3" });
   }
+  r.texto = r.textos.join("\n");
   return r;
 }
 
@@ -158,17 +215,27 @@ export async function realzar(imagen, op = {}) {
     const umbral = otsu(g);
     const caja = cajaDelPapel(g, W, H, umbral);
 
+    // Ticket acostado (foto tomada de lado): hay que girarlo para leerlo.
+    const giro = op.giro ?? 0;
+    if (op.soloOrientacion) { c0.width = c0.height = 0; return { acostado: caja.w > caja.h * 1.15 }; }
+    const anchoPapel = giro % 180 ? caja.h : caja.w;
+
     // 2) Ancho de trabajo: ~1400 px de papel.
-    const escala = Math.min(3, Math.max(1, (op.ancho || 1400) / caja.w));
-    const cw = Math.round(caja.w * escala), ch = Math.round(caja.h * escala);
+    const escala = Math.min(3, Math.max(1, (op.ancho || 1400) / anchoPapel));
+    const dw = Math.round(caja.w * escala), dh = Math.round(caja.h * escala);
+    const [cw, ch] = giro % 180 ? [dh, dw] : [dw, dh];
     const c = document.createElement("canvas"); c.width = cw; c.height = ch;
     const ctx = c.getContext("2d");
     ctx.imageSmoothingQuality = "high";
-    ctx.drawImage(c0, caja.x, caja.y, caja.w, caja.h, 0, 0, cw, ch);
+    ctx.translate(cw / 2, ch / 2);
+    ctx.rotate((giro * Math.PI) / 180);
+    ctx.drawImage(c0, caja.x, caja.y, caja.w, caja.h, -dw / 2, -dh / 2, dw, dh);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
     const px = ctx.getImageData(0, 0, cw, ch);
     // En pruebas con tickets reales, gris con contraste leyó mejor que blanco y negro puro.
     if (op.modo === "byn") binarizar(px.data, cw, ch, umbral, op.k || 0.88); else estirar(px.data);
     ctx.putImageData(px, 0, 0);
+    c0.width = c0.height = 0; // libera la memoria de la foto grande
     return c.toDataURL("image/png");
   } catch (e) {
     return imagen;
@@ -205,26 +272,30 @@ function otsu(g) {
   return t;
 }
 
-// Columnas y renglones donde la mayoría de los píxeles es papel (claro).
+// Columnas y renglones donde predomina el papel (claro). Funciona con el ticket parado o acostado.
 function cajaDelPapel(g, W, H, umbral) {
-  const tramo = (n, esPapel) => {
+  const tramo = (fr, thr) => {
     let mejorIni = 0, mejorLen = 0, ini = -1;
-    for (let i = 0; i <= n; i++) {
-      if (i < n && esPapel(i)) { if (ini < 0) ini = i; }
+    for (let i = 0; i <= fr.length; i++) {
+      if (i < fr.length && fr[i] > thr) { if (ini < 0) ini = i; }
       else if (ini >= 0) { if (i - ini > mejorLen) { mejorLen = i - ini; mejorIni = ini; } ini = -1; }
     }
     return [mejorIni, mejorLen];
   };
   const paso = Math.max(1, Math.round(Math.max(W, H) / 800));
-  const fracCol = (x, y0, y1) => { let b = 0, n = 0; for (let y = y0; y < y1; y += paso) { n++; if (g[y * W + x] > umbral) b++; } return b / n; };
-  const fracRen = (y, x0, x1) => { let b = 0, n = 0; for (let x = x0; x < x1; x += paso) { n++; if (g[y * W + x] > umbral) b++; } return b / n; };
-  let [x, w] = tramo(W, (i) => fracCol(i, 0, H) > 0.35);
-  if (w < W * 0.15) return { x: 0, y: 0, w: W, h: H };
-  let [y, h] = tramo(H, (i) => fracRen(i, x, x + w) > 0.5);
-  if (h < H * 0.15) { y = 0; h = H; }
-  // Segunda pasada de columnas ya solo en los renglones del papel.
-  const [x2, w2] = tramo(W, (i) => fracCol(i, y, y + h) > 0.6);
-  if (w2 > W * 0.15) { x = x2; w = w2; }
+  const cols = (y0, y1) => { const f = new Float32Array(W); for (let x = 0; x < W; x++) { let b = 0, n = 0; for (let y = y0; y < y1; y += paso) { n++; if (g[y * W + x] > umbral) b++; } f[x] = b / n; } return f; };
+  const rens = (x0, x1) => { const f = new Float32Array(H); for (let y = 0; y < H; y++) { let b = 0, n = 0; for (let x = x0; x < x1; x += paso) { n++; if (g[y * W + x] > umbral) b++; } f[y] = b / n; } return f; };
+  const max = (f) => f.reduce((m, v) => Math.max(m, v), 0);
+
+  const c1 = cols(0, H);
+  let [x, w] = tramo(c1, Math.max(0.15, max(c1) * 0.5));
+  if (w < W * 0.1) return { x: 0, y: 0, w: W, h: H };
+  const r1 = rens(x, x + w);
+  let [y, h] = tramo(r1, Math.max(0.3, max(r1) * 0.6));
+  if (h < H * 0.1) { y = 0; h = H; }
+  const c2 = cols(y, y + h);
+  const [x2, w2] = tramo(c2, Math.max(0.3, max(c2) * 0.6));
+  if (w2 > W * 0.1) { x = x2; w = w2; }
   const m = Math.round(Math.min(W, H) * 0.01);
   x = Math.max(0, x - m); y = Math.max(0, y - m);
   w = Math.min(W - x, w + 2 * m); h = Math.min(H - y, h + 2 * m);
@@ -234,7 +305,7 @@ function cajaDelPapel(g, W, H, umbral) {
 // Umbral local (Bradley): cada píxel se compara con el promedio de su zona.
 function binarizar(d, W, H, umbralPapel, k) {
   const g = grises(d);
-  const integ = new Float64Array((W + 1) * (H + 1));
+  const integ = new Uint32Array((W + 1) * (H + 1));
   for (let y = 1; y <= H; y++) {
     let fila = 0;
     for (let x = 1; x <= W; x++) {
@@ -302,6 +373,11 @@ export function datosDelTexto(texto) {
     const l = LT.find((x) => etiqueta.test(x));
     if (l) total = importe(l.slice(l.search(etiqueta)));
   }
+
+  // Si SUBTOTAL e IMPORTE coinciden y TOTAL no, el TOTAL se leyó mal (p. ej. «$195» como «3195»).
+  const enRenglon = (re) => { const l = LT.find((x) => re.test(x)); return l ? importe(l.slice(l.search(re))) : ""; };
+  const sub = enRenglon(/\bSUB ?-?TOTAL\b/), pago = enRenglon(/\bIMPORTE\b/);
+  if (sub && sub === pago && total !== sub) total = sub;
 
   const valorTras = (re) => { const x = T.match(re); return x ? x[1] : ""; };
   // Los valores siempre llevan al menos un número (así no tomamos palabras como «ATENDIMOS»).

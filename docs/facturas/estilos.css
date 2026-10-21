@@ -149,3 +149,5 @@ form label small { font-weight: 400; color: #8d8172; }
 .texto-leido summary { cursor: pointer; font-weight: 600; color: var(--marino); }
 .texto-leido pre { white-space: pre-wrap; word-break: break-word; font-size: .8rem; background: var(--marfil); padding: 10px; border-radius: 10px; max-height: 320px; overflow: auto; }
 .version { text-align: center; font-size: .75rem; color: #8d8172; margin: 0 0 24px; }
+.campos .c-recorte { overflow-x: auto; margin: 4px 0; border-radius: 6px; border: 1px solid var(--rosa-medio); background: #fff; }
+.campos .c-recorte img { display: block; height: 56px; width: auto; max-width: none; }

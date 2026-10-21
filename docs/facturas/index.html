@@ -89,13 +89,21 @@
         </details>
 
         <div class="acciones">
-          <button class="btn btn--grande" id="btn-facturar">1 · Copiar datos y abrir página</button>
+          <button class="btn btn--grande" id="btn-copiar-teclado">1 · Copiar mis datos al teclado</button>
+          <p class="ayuda" id="lista-teclado"></p>
+          <button class="btn btn--grande btn--rosa" id="btn-facturar">2 · Abrir página de facturación</button>
           <p class="ayuda">
-            2 · En la página de facturación toca tu marcador <strong>Llenar factura</strong>
-            (o copia cada dato con los botones de arriba).<br>
-            3 · Revisa, resuelve el captcha si hay, y toca <strong>Generar / Facturar</strong>.
-            La factura llega a tu email.
+            3 · En la página toca cada casilla y, en tu teclado, toca el ícono del
+            <strong>portapapeles</strong> 📋: ahí están tus datos en orden. Toca el que va en esa casilla.<br>
+            4 · Toca <strong>Continuar / Facturar</strong>. La factura llega a tu email.
           </p>
+          <button class="btn btn--linea btn--chico" id="btn-copiar-marcador-datos" type="button">Copiar para el marcador «Llenar factura»</button>
+          <details class="opcional">
+            <summary>¿No ves el portapapeles en tu teclado?</summary>
+            <p class="ayuda">En el teclado Samsung toca los tres puntitos <strong>⋯</strong> de la barra de arriba del teclado y luego
+              <strong>Portapapeles</strong>. En Gboard (Google) es el ícono 📋 de la barra de arriba del teclado.
+              También puedes usar los botones <strong>Copiar</strong> de cada dato.</p>
+          </details>
           <button class="btn btn--linea" id="btn-facturado">Ya la generé ✓</button>
         </div>
       </div>
@@ -165,6 +173,9 @@
             Para usarlo, en la página de facturación escribe «Llenar factura» en la barra y toca el marcador.</li>
         </ul>
         <button class="btn btn--linea" id="btn-copiar-marcador">Copiar código del marcador</button>
+        <p class="ayuda">El marcador solo funciona si abres la página de facturación en Chrome normal
+          (no desde la app instalada). Antes de tocarlo, en la pantalla del ticket usa
+          «Copiar para el marcador».</p>
       </div>
     </section>
   </main>
@@ -173,6 +184,6 @@
 
   <div class="toast" id="toast" hidden></div>
 
-  <script type="module" src="app.js?v=12"></script>
+  <script type="module" src="app.js?v=13"></script>
 </body>
 </html>

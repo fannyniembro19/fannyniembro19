@@ -293,6 +293,7 @@ function mostrar(registro) {
   const x = registro.datos;
   const d = misDatos();
   $("#r-proveedor").value = x.proveedor || "";
+  $("#lista-teclado").textContent = "";
   $("#r-texto").textContent = x.texto || "";
   $("#r-texto-caja").hidden = !x.texto;
   $("#r-emisor").textContent = [x.emisor_razon_social, x.emisor_rfc].filter(Boolean).join(" · ");
@@ -416,15 +417,54 @@ $("#r-portal").addEventListener("change", () => {
   $("#r-portal-origen").textContent = "Guardada para la próxima vez.";
 });
 
+// Los datos en el orden en que los pide la página de facturación.
+function datosEnOrden() {
+  const x = actual.datos, d = misDatos();
+  const ex = (et) => ((x.campos_extra || []).find((c) => c.etiqueta === et) || {}).valor || "";
+  const lista = esWalmart(x)
+    ? [["RFC", d.rfc], ["Código postal", d.cp], ["Número de ticket (TC)", ex("TC")], ["# Transacción (TR)", ex("TR")]]
+    : [["RFC", d.rfc], ["Código postal", d.cp], ["Folio / ticket", x.folio], ["Total", x.total], ["Email", d.email]];
+  return lista.filter(([, v]) => v);
+}
+
+const espera = (ms) => new Promise((ok) => setTimeout(ok, ms));
+
+// Copia cada dato por separado para que queden en el portapapeles del teclado (Samsung, Gboard…).
+// Se copian del último al primero: así el teclado los muestra en el orden de la página.
+$("#btn-copiar-teclado").addEventListener("click", async () => {
+  if (!actual) return;
+  const lista = datosEnOrden();
+  const btn = $("#btn-copiar-teclado");
+  btn.disabled = true;
+  try {
+    for (let i = lista.length - 1; i >= 0; i--) {
+      btn.textContent = `Copiando ${lista[i][0]}…`;
+      await navigator.clipboard.writeText(lista[i][1]);
+      await espera(900); // pausa para que el teclado lo guarde como un elemento aparte
+    }
+    $("#lista-teclado").innerHTML = "Copiados, en este orden: " + lista.map(([n, v]) => `<br>• <strong>${n}:</strong> ${v.replace(/[<>&]/g, "")}`).join("");
+    toast("¡Listo! Ahora abre la página de facturación.");
+  } catch (e) {
+    toast("No pude copiar. Usa los botones Copiar de cada dato.");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "1 · Copiar mis datos al teclado";
+  }
+});
+
 $("#btn-facturar").addEventListener("click", () => {
   const url = $("#r-portal").value.trim();
   if (!/^https?:\/\//i.test(url)) { toast("Falta la dirección de la página de facturación."); $("#r-portal").focus(); return; }
-  // Copiar y abrir en el mismo toque (si no, el navegador bloquea la ventana).
-  navigator.clipboard.writeText(paqueteParaMarcador())
-    .then(() => toast("Datos copiados. En la página toca «Llenar factura»."))
-    .catch(() => toast("No pude copiar; usa los botones Copiar de cada dato."));
   window.open(url, "_blank", "noopener");
   recordarPortal();
+});
+
+// Para quien usa el marcador «Llenar factura» en Chrome: copia todo junto en el formato que entiende.
+$("#btn-copiar-marcador-datos").addEventListener("click", () => {
+  if (!actual) return;
+  navigator.clipboard.writeText(paqueteParaMarcador())
+    .then(() => toast("Copiado. En la página toca tu marcador «Llenar factura»."))
+    .catch(() => toast("No pude copiar."));
 });
 
 $("#btn-facturado").addEventListener("click", () => {
@@ -466,7 +506,7 @@ window.addEventListener("unhandledrejection", (e) => estado($("#estado"), "Error
 
 // ---------- versión ----------
 // Si ya hay una versión más nueva publicada, avisamos para no quedarnos con la vieja guardada.
-const VERSION = 12;
+const VERSION = 13;
 $("#version").textContent = "Versión " + VERSION;
 fetch("version.json?t=" + Date.now(), { cache: "no-store" })
   .then((r) => r.json())

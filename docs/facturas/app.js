@@ -39,8 +39,6 @@ document.querySelectorAll("[data-ir]").forEach((b) => b.addEventListener("click"
 
 function revisarConfig() {
   const d = misDatos();
-  $("#aviso-rfc").hidden = !d.rfc || rfcValido(d.rfc);
-  $("#rfc-malo").textContent = d.rfc || "";
   $("#aviso-config").hidden = Boolean(d.rfc && d.email);
 }
 
@@ -50,29 +48,14 @@ function cargarForm() {
   const d = misDatos();
   for (const el of form.elements) if (el.name && d[el.name] != null) el.value = d[el.name];
 }
-// El último carácter del RFC es un dígito de comprobación (algoritmo del SAT).
-// Si no coincide, el RFC trae algún carácter equivocado y los portales lo rechazan.
-function rfcValido(rfc) {
-  if (/^X[AE]XX010101000$/.test(rfc)) return true; // RFC genéricos del SAT
-  if (!/^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$/.test(rfc)) return false;
-  const V = "0123456789ABCDEFGHIJKLMN&OPQRSTUVWXYZ Ñ";
-  const base = (rfc.length === 12 ? " " : "") + rfc.slice(0, -1);
-  let suma = 0;
-  for (let i = 0; i < 12; i++) suma += V.indexOf(base[i]) * (13 - i);
-  const r = suma % 11;
-  const digito = r === 0 ? "0" : 11 - r === 10 ? "A" : String(11 - r);
-  return digito === rfc.slice(-1);
-}
-
 form.addEventListener("submit", (e) => {
   e.preventDefault();
   const d = Object.fromEntries(new FormData(form));
   d.rfc = d.rfc.trim().toUpperCase().replace(/[\s-]/g, "");
-  if (!rfcValido(d.rfc) && !confirm(`El RFC ${d.rfc} no pasa la comprobación del SAT: probablemente tiene un carácter equivocado.\n\nRevísalo en tu Constancia de Situación Fiscal.\n\n¿Guardarlo de todos modos?`)) return;
   d.razonSocial = d.razonSocial.trim().toUpperCase();
   d.apiKey = d.apiKey.trim();
   guardado.escribir(K_DATOS, d);
-  estado($("#estado-datos"), rfcValido(d.rfc) ? "Guardado ✓" : "Guardado, pero revisa tu RFC: no pasa la comprobación del SAT.", rfcValido(d.rfc) ? "ok" : "error");
+  estado($("#estado-datos"), "Guardado ✓", "ok");
   revisarConfig();
 });
 
@@ -554,7 +537,7 @@ window.addEventListener("unhandledrejection", (e) => estado($("#estado"), "Error
 
 // ---------- versión ----------
 // Si ya hay una versión más nueva publicada, avisamos para no quedarnos con la vieja guardada.
-const VERSION = 16;
+const VERSION = 15;
 $("#version").textContent = "Versión " + VERSION;
 fetch("version.json?t=" + Date.now(), { cache: "no-store" })
   .then((r) => r.json())
